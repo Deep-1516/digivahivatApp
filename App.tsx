@@ -1,45 +1,41 @@
 /**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
+ * App.tsx
+ * Main application entry point for falomobileapp
  */
+import React from 'react';
+import { StatusBar, useColorScheme } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AuthProvider } from './src/context/AuthContext';
+import { AlertProvider } from './src/context/AlertContext';
+import { ThemeProvider } from './src/context/ThemeContext';
+import RootNavigator from './src/navigation';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
-
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
+function AppContent(): React.JSX.Element {
+  const isDark = useColorScheme() === 'dark';
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? '#0F172A' : '#F8FAFC'}
+      />
+      <AuthProvider>
+        <AlertProvider>
+          <RootNavigator />
+        </AlertProvider>
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
+function App(): React.JSX.Element {
   return (
-    <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-});
-
 export default App;
+
+

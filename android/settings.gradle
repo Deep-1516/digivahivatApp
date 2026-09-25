@@ -1,6 +1,13 @@
-pluginManagement { includeBuild("../node_modules/@react-native/gradle-plugin") }
+pluginManagement {
+    plugins {
+        id("com.android.application") version "9.1.0"
+        id("com.android.library") version "9.1.0"
+    }
+    includeBuild("../node_modules/@react-native/gradle-plugin")
+}
 plugins { id("com.facebook.react.settings") }
 extensions.configure(com.facebook.react.ReactSettingsExtension){ ex -> ex.autolinkLibrariesFromCommand() }
 rootProject.name = 'falomobileapp'
 include ':app'
 includeBuild('../node_modules/@react-native/gradle-plugin')
+
