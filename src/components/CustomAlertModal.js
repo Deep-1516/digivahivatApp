@@ -94,8 +94,12 @@ const CustomAlertModal = ({
                       buttons.length > 1 && { flex: 1 },
                     ]}
                     onPress={() => {
-                      if (btn.onPress) btn.onPress();
                       onClose();
+                      if (btn.onPress) {
+                        setTimeout(() => {
+                          btn.onPress();
+                        }, 50);
+                      }
                     }}>
                     <Text
                       style={[

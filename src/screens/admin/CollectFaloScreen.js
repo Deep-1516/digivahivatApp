@@ -24,7 +24,7 @@ import { COLORS, SPACING, PAYMENT_MODES, PAYMENT_STATUSES } from '../../constant
 const CURRENT_YEAR = new Date().getFullYear();
 const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - 1 + i).map(String);
 
-const CollectFaloScreen = ({ navigation }) => {
+const CollectFaloScreen = ({ navigation, route }) => {
   const { showError, showSuccess } = useAlert();
   const { colors } = useTheme();
   const [residents,  setResidents]  = useState([]);
