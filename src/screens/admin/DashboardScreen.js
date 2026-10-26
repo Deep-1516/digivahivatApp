@@ -282,20 +282,6 @@ const AdminDashboardScreen = ({ navigation }) => {
         )}
       </ScrollView>
 
-      {/* ─── Floating Action Buttons ─── */}
-      <View style={styles.fab}>
-        <TouchableOpacity
-          style={[styles.fabBtn, { backgroundColor: colors.primary }]}
-          onPress={() => navigation.navigate('CollectFalo')}>
-          <Text style={styles.fabText}>+ Collect Falo</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.fabBtn, { backgroundColor: colors.warning }]}
-          onPress={() => navigation.navigate('LogExpense')}>
-          <Text style={styles.fabText}>+ Log Expense</Text>
-        </TouchableOpacity>
-      </View>
-
       {/* ─── Event Details Modal ─── */}
       <EventDetailsModal
         visible={!!selectedEvent}
@@ -308,7 +294,7 @@ const AdminDashboardScreen = ({ navigation }) => {
 
 const styles = StyleSheet.create({
   screen:  { flex: 1 },
-  content: { padding: SPACING.md, paddingBottom: 110 },
+  content: { padding: SPACING.md, paddingBottom: SPACING.xl },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   headerRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: SPACING.md },
@@ -368,28 +354,6 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   createEventText: { fontWeight: '700', fontSize: 15 },
-
-  fab: {
-    position:       'absolute',
-    bottom:         SPACING.lg,
-    left:           SPACING.md,
-    right:          SPACING.md,
-    flexDirection:  'row',
-    justifyContent: 'space-between',
-    gap:            SPACING.sm,
-  },
-  fabBtn: {
-    flex:            1,
-    borderRadius:    14,
-    paddingVertical: 14,
-    alignItems:      'center',
-    elevation:       6,
-    shadowColor:     '#000',
-    shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.15,
-    shadowRadius:    6,
-  },
-  fabText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
 });
 
 export default AdminDashboardScreen;
