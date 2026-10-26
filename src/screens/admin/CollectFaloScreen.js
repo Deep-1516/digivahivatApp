@@ -80,7 +80,14 @@ const CollectFaloScreen = ({ navigation, route }) => {
 
   const validate = () => {
     const e = {};
-    if (!selectedResident) e.resident = 'Please select a resident.';
+    if (!selectedResident) {
+      e.resident = 'Please select a resident.';
+    } else if (
+      contributionType === 'Event' &&
+      selectedEvent?.excludedResidents?.some((x) => (x._id || x) === selectedResident._id)
+    ) {
+      e.resident = `${selectedResident.name} is excluded from "${selectedEvent.title}" and cannot pay for this event.`;
+    }
     if (contributionType === 'Event' && !selectedEvent) e.event = 'Please select an event.';
     if (contributionType === 'Annual' && !annualYear) e.annualYear = 'Please select a year.';
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) e.amount = 'Enter a valid amount.';
@@ -371,6 +378,10 @@ const CollectFaloScreen = ({ navigation, route }) => {
                       if (item.perHouseAmount > 0) {
                         setAmount(String(item.perHouseAmount));
                       }
+                      if (selectedResident && item.excludedResidents?.some((x) => (x._id || x) === selectedResident._id)) {
+                        setSelectedResident(null);
+                        setErrors((e) => ({ ...e, resident: `Resident removed: Excluded from "${item.title}".` }));
+                      }
                       setEventModalVisible(false);
                     }}>
                     <View style={{ flex: 1 }}>
@@ -435,8 +446,20 @@ const CollectFaloScreen = ({ navigation, route }) => {
                 const isExcluded = contributionType === 'Event' && selectedEvent?.excludedResidents?.some((x) => (x._id || x) === item._id);
                 return (
                   <TouchableOpacity
-                    style={[styles.listItem, { borderBottomColor: colors.border + '60' }, isSelected && { backgroundColor: colors.primary + '18', borderRadius: 8 }]}
+                    style={[
+                      styles.listItem,
+                      { borderBottomColor: colors.border + '60' },
+                      isSelected && { backgroundColor: colors.primary + '18', borderRadius: 8 },
+                      isExcluded && { opacity: 0.55, backgroundColor: colors.danger + '0A' },
+                    ]}
                     onPress={() => {
+                      if (isExcluded) {
+                        showError(
+                          'Resident Excluded 🚫',
+                          `${item.name} is excluded from "${selectedEvent.title}" and cannot pay for this event.`
+                        );
+                        return;
+                      }
                       setSelectedResident(item);
                       setErrors((e) => ({ ...e, resident: '' }));
                       setResidentModalVisible(false);
