@@ -28,9 +28,9 @@ const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
 
 const DashboardScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user, logout } = useAuth();
-  const { showError }    = useAlert();
-  const { colors }       = useTheme();
+  const { user, logout: authLogout } = useAuth();
+  const { showError, hideAlert }      = useAlert();
+  const { colors }                   = useTheme();
   const [dashboard,   setDashboard]   = useState(null);
   const [societyStats, setSociety]    = useState(null);
   const [refreshing,  setRefreshing]  = useState(false);
@@ -38,7 +38,13 @@ const DashboardScreen = ({ navigation }) => {
   const [activeEvent, setActiveEvent] = useState(null);
   const [showModal,   setShowModal]   = useState(false);
 
+  const handleLogout = () => {
+    hideAlert();
+    authLogout();
+  };
+
   const fetchData = useCallback(async () => {
+    if (!user) return;
     try {
       // 1. Get all events, pick the first active one
       const evRes  = await eventsAPI.getAll();
@@ -55,12 +61,13 @@ const DashboardScreen = ({ navigation }) => {
       const resRes = await residentsAPI.getAll();
       setSociety(resRes.data.data.societyStats);
     } catch (err) {
+      if (!user || err?.isSilent || err?.isAuthError) return;
       showError('Error', err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user, showError]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
@@ -82,7 +89,7 @@ const DashboardScreen = ({ navigation }) => {
             <Text style={[styles.userName, { color: colors.text }]}>{user?.name}</Text>
             {user?.houseOrFlatNo ? <Text style={[styles.flat, { color: colors.textMuted }]}>Flat {user.houseOrFlatNo}</Text> : null}
           </View>
-          <TouchableOpacity onPress={logout}>
+          <TouchableOpacity onPress={handleLogout}>
             <Text style={[styles.logoutBtn, { color: colors.danger }]}>Logout</Text>
           </TouchableOpacity>
         </View>

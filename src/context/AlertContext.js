@@ -5,6 +5,7 @@
  */
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import CustomAlertModal from '../components/CustomAlertModal';
+import { isLoggingOut } from '../services/api';
 
 const AlertContext = createContext({
   showAlert:   () => {},
@@ -55,9 +56,18 @@ export const AlertProvider = ({ children }) => {
   }, [showAlert]);
 
   const showError = useCallback((title, message) => {
+    if (isLoggingOut()) return;
+    if (message?.isSilent) return;
+
+    const msgString = typeof message === 'string' ? message : message?.message || '';
+    const lower = msgString.toLowerCase();
+    if (lower.includes('not authorized') || lower.includes('no token') || lower.includes('token invalid')) {
+      if (isLoggingOut()) return;
+    }
+
     showAlert({
       title: title || 'Error',
-      message: typeof message === 'string' ? message : message?.message || 'Something went wrong.',
+      message: msgString || 'Something went wrong.',
       type: 'error',
       buttons: [{ text: 'Dismiss', style: 'cancel' }],
     });

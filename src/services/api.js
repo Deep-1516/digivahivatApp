@@ -14,8 +14,21 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+let loggingOut = false;
+export const setLoggingOut = (val) => {
+  loggingOut = Boolean(val);
+};
+export const isLoggingOut = () => loggingOut;
+
 // ─── Request interceptor — attach token ────────────────────────────────────
 api.interceptors.request.use(async (config) => {
+  if (loggingOut) {
+    const controller = new AbortController();
+    controller.abort();
+    config.signal = controller.signal;
+    return config;
+  }
+
   try {
     const raw = await AsyncStorage.getItem('@falo_auth');
     if (raw) {
@@ -29,13 +42,36 @@ api.interceptors.request.use(async (config) => {
 // ─── Response interceptor — normalise errors ─────────────────────────────
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
+    // If request was cancelled or user is logging out, fail silently
+    if (axios.isCancel(err) || err.name === 'CanceledError' || loggingOut) {
+      const silentErr = new Error('Request cancelled');
+      silentErr.isSilent = true;
+      silentErr.isAuthError = true;
+      return Promise.reject(silentErr);
+    }
+
+    const status = err.response?.status;
     const message =
       err.response?.data?.message ||
       err.response?.data?.errors?.[0]?.message ||
       err.message ||
       'Something went wrong. Please try again.';
-    return Promise.reject(new Error(message));
+
+    const customError = new Error(message);
+    customError.status = status;
+    customError.response = err.response;
+
+    // If 401 Unauthorized occurs
+    if (status === 401) {
+      customError.isAuthError = true;
+      const raw = await AsyncStorage.getItem('@falo_auth').catch(() => null);
+      if (!raw || loggingOut) {
+        customError.isSilent = true;
+      }
+    }
+
+    return Promise.reject(customError);
   }
 );
 

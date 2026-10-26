@@ -7,6 +7,7 @@
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { setLoggingOut } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -50,9 +51,16 @@ export const AuthProvider = ({ children }) => {
 
   // ── Logout: clear everything ───────────────────────────────────────────────
   const logout = async () => {
+    setLoggingOut(true);
     setUser(null);
     setToken(null);
-    await AsyncStorage.removeItem(STORAGE_KEY);
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEY);
+    } finally {
+      setTimeout(() => {
+        setLoggingOut(false);
+      }, 2000);
+    }
   };
 
   const isAdmin      = user?.role === 'Admin';

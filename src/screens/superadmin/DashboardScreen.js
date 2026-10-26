@@ -14,8 +14,8 @@ import { SPACING }      from '../../constants';
 
 const SuperAdminDashboardScreen = ({ navigation }) => {
   const insets                      = useSafeAreaInsets();
-  const { user, logout }            = useAuth();
-  const { showError }               = useAlert();
+  const { user, logout: authLogout }= useAuth();
+  const { showError, hideAlert }    = useAlert();
   const { colors }                  = useTheme();
 
   const [societies,   setSocieties]   = useState([]);
@@ -23,7 +23,13 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
   const [loading,     setLoading]     = useState(true);
   const [refreshing,  setRefreshing]  = useState(false);
 
+  const handleLogout = () => {
+    hideAlert();
+    authLogout();
+  };
+
   const fetchData = useCallback(async () => {
+    if (!user) return;
     try {
       const [socRes, resRes] = await Promise.all([
         societiesAPI.getAll().catch(() => ({ data: { data: [] } })),
@@ -34,12 +40,13 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
       setSocieties(socData);
       setResidents(resData);
     } catch (err) {
+      if (!user || err?.isSilent || err?.isAuthError) return;
       showError('Error', err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [showError]);
+  }, [user, showError]);
 
   useFocusEffect(
     useCallback(() => {
@@ -74,7 +81,7 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
             <Text style={[styles.title, { color: colors.text }]}>👑 Super Admin Dashboard</Text>
             <Text style={[styles.sub, { color: colors.textMuted }]}>Platform Overview • {user?.name}</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={[styles.logoutBtn, { backgroundColor: colors.danger + '18' }]}>
+          <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.danger + '18' }]}>
             <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
           </TouchableOpacity>
         </View>

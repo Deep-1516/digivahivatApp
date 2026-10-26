@@ -46,8 +46,8 @@ const STATUS_CONFIG = {
 
 const AdminDashboardScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user, logout }   = useAuth();
-  const { showError, showAlert } = useAlert();
+  const { user, logout: authLogout }   = useAuth();
+  const { showError, showAlert, hideAlert } = useAlert();
   const { colors }         = useTheme();
   const [events,        setEvents]      = useState([]);
   const [recentC,       setRecentC]     = useState([]);
@@ -55,7 +55,13 @@ const AdminDashboardScreen = ({ navigation }) => {
   const [refreshing,    setRefreshing]  = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
 
+  const handleLogout = () => {
+    hideAlert();
+    authLogout();
+  };
+
   const fetchData = useCallback(async () => {
+    if (!user) return;
     try {
       const evRes = await eventsAPI.getAll();
       const allEvents = evRes.data.data || [];
@@ -91,12 +97,13 @@ const AdminDashboardScreen = ({ navigation }) => {
         setRecentC([]);
       }
     } catch (err) {
+      if (!user || err?.isSilent || err?.isAuthError) return;
       showError('Error', err.message);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [showError]);
+  }, [user, showError]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
@@ -214,7 +221,7 @@ const AdminDashboardScreen = ({ navigation }) => {
             <Text style={[styles.title, { color: colors.text }]}>Admin Dashboard</Text>
             <Text style={[styles.sub, { color: colors.textMuted }]}>{user?.name}</Text>
           </View>
-          <TouchableOpacity onPress={logout}>
+          <TouchableOpacity onPress={handleLogout}>
             <Text style={[styles.logoutBtn, { color: colors.danger }]}>Logout</Text>
           </TouchableOpacity>
         </View>
