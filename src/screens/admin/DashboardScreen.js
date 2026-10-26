@@ -18,6 +18,7 @@ import { useAuth }        from '../../context/AuthContext';
 import { useAlert }       from '../../context/AlertContext';
 import { useTheme }       from '../../context/ThemeContext';
 import { eventsAPI, contributionsAPI } from '../../services/api';
+import EventDetailsModal from '../../components/EventDetailsModal';
 import StatCard      from '../../components/StatCard';
 import ProgressBar   from '../../components/ProgressBar';
 import ContributionItem from '../../components/ContributionItem';
@@ -48,10 +49,11 @@ const AdminDashboardScreen = ({ navigation }) => {
   const { user, logout }   = useAuth();
   const { showError, showAlert } = useAlert();
   const { colors }         = useTheme();
-  const [events,     setEvents]   = useState([]);
-  const [recentC,    setRecentC]  = useState([]);
-  const [loading,    setLoading]  = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+  const [events,        setEvents]      = useState([]);
+  const [recentC,       setRecentC]     = useState([]);
+  const [loading,       setLoading]     = useState(true);
+  const [refreshing,    setRefreshing]  = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
 
   const fetchData = useCallback(async () => {
     try {
@@ -124,9 +126,14 @@ const AdminDashboardScreen = ({ navigation }) => {
     const status = getEventStatus(ev);
     const cfg    = STATUS_CONFIG[status];
     const d      = ev._dashboard;
+    const paidCount = d?.paidPersonsCount ?? d?.contributorsCount ?? 0;
 
     return (
-      <View key={ev._id} style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+      <TouchableOpacity
+        key={ev._id}
+        activeOpacity={0.8}
+        onPress={() => setSelectedEvent(ev)}
+        style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {/* Header row: title + status badge */}
         <View style={styles.eventHeaderRow}>
           <View style={{ flex: 1, paddingRight: 8 }}>
@@ -135,9 +142,9 @@ const AdminDashboardScreen = ({ navigation }) => {
               {ev.startDate && <Text style={[styles.dateText, { color: colors.textMuted }]}>📅 {fmtDate(ev.startDate)}</Text>}
               {ev.endDate   && <Text style={[styles.dateText, { color: colors.textMuted }]}> → {fmtDate(ev.endDate)}</Text>}
             </View>
-            {ev.perHouseAmount > 0 && (
-              <Text style={[styles.perHouseText, { color: colors.primary }]}>Per House: ₹{ev.perHouseAmount}</Text>
-            )}
+            <Text style={[styles.paidPersonsText, { color: colors.primary }]}>
+              👥 {paidCount} {paidCount === 1 ? 'Person' : 'Persons'} Paid Fund
+            </Text>
           </View>
           <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
             <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
@@ -163,35 +170,35 @@ const AdminDashboardScreen = ({ navigation }) => {
               <Text style={[styles.statValue, { color: colors.danger }]}>{fmt(d.totalExpenses)}</Text>
             </View>
             <View style={[styles.statBox, { backgroundColor: colors.background }]}>
-              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Net Balance</Text>
-              <Text style={[styles.statValue, { color: d.netBalance >= 0 ? colors.success : colors.danger }]}>{fmt(d.netBalance)}</Text>
+              <Text style={[styles.statLabel, { color: colors.textMuted }]}>Paid Persons</Text>
+              <Text style={[styles.statValue, { color: colors.info }]}>{paidCount}</Text>
             </View>
           </View>
         ) : null}
 
         {/* Action Buttons */}
         <View style={styles.cardActions}>
+          <TouchableOpacity
+            style={[styles.actionBtnOutline, { borderColor: colors.primary, flex: 1 }]}
+            onPress={() => setSelectedEvent(ev)}>
+            <Text style={[styles.actionBtnOutlineText, { color: colors.primary }]}>👁 Paid Persons ({paidCount})</Text>
+          </TouchableOpacity>
           {status === 'active' && (
             <>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+                style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 1 }]}
                 onPress={() => navigation.navigate('CollectFalo', { event: ev })}>
                 <Text style={styles.actionBtnText}>+ Collect</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: colors.warning }]}
+                style={[styles.actionBtn, { backgroundColor: colors.warning, flex: 1 }]}
                 onPress={() => navigation.navigate('LogExpense', { event: ev })}>
                 <Text style={styles.actionBtnText}>+ Expense</Text>
               </TouchableOpacity>
             </>
           )}
-          <TouchableOpacity
-            style={[styles.actionBtnOutline, { borderColor: colors.border }]}
-            onPress={() => handleExport(ev)}>
-            <Text style={[styles.actionBtnOutlineText, { color: colors.text }]}>📊 Export</Text>
-          </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -288,6 +295,13 @@ const AdminDashboardScreen = ({ navigation }) => {
           <Text style={styles.fabText}>+ Log Expense</Text>
         </TouchableOpacity>
       </View>
+
+      {/* ─── Event Details Modal ─── */}
+      <EventDetailsModal
+        visible={!!selectedEvent}
+        onClose={() => setSelectedEvent(null)}
+        event={selectedEvent}
+      />
     </View>
   );
 };
@@ -324,10 +338,11 @@ const styles = StyleSheet.create({
     borderWidth:     1,
     elevation:       2,
   },
-  eventHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
-  eventTitle:     { fontSize: 16, fontWeight: '800' },
-  dateRow:        { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
-  dateText:       { fontSize: 11, fontWeight: '500' },
+  eventHeaderRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+  eventTitle:      { fontSize: 16, fontWeight: '800' },
+  dateRow:         { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+  dateText:        { fontSize: 11, fontWeight: '500' },
+  paidPersonsText: { fontSize: 12, fontWeight: '800', marginTop: 4 },
   perHouseText:   { fontSize: 12, fontWeight: '700', marginTop: 2 },
 
   badge:          { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },

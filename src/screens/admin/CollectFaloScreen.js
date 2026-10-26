@@ -253,6 +253,11 @@ const CollectFaloScreen = ({ navigation, route }) => {
                 {selectedResident.houseOrFlatNo ? `Flat ${selectedResident.houseOrFlatNo}  •  ` : ''}
                 {selectedResident.phone}
               </Text>
+              {contributionType === 'Event' && selectedEvent?.excludedResidents?.some((x) => (x._id || x) === selectedResident._id) && (
+                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.danger, marginTop: 2 }}>
+                  🚫 EXCLUDED from {selectedEvent.title}
+                </Text>
+              )}
             </View>
             <TouchableOpacity onPress={() => setSelectedResident(null)}>
               <Text style={{ fontSize: 16, color: colors.textMuted, padding: 4 }}>✕</Text>
@@ -427,6 +432,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const isSelected = selectedResident?._id === item._id;
+                const isExcluded = contributionType === 'Event' && selectedEvent?.excludedResidents?.some((x) => (x._id || x) === item._id);
                 return (
                   <TouchableOpacity
                     style={[styles.listItem, { borderBottomColor: colors.border + '60' }, isSelected && { backgroundColor: colors.primary + '18', borderRadius: 8 }]}
@@ -435,12 +441,14 @@ const CollectFaloScreen = ({ navigation, route }) => {
                       setErrors((e) => ({ ...e, resident: '' }));
                       setResidentModalVisible(false);
                     }}>
-                    <View style={[styles.itemAvatar, { backgroundColor: colors.border }]}>
-                      <Text style={[styles.itemAvatarText, { color: colors.textMuted }]}>{item.name?.[0]?.toUpperCase() || 'R'}</Text>
+                    <View style={[styles.itemAvatar, { backgroundColor: isExcluded ? '#EF444422' : colors.border }]}>
+                      <Text style={[styles.itemAvatarText, { color: isExcluded ? colors.danger : colors.textMuted }]}>
+                        {isExcluded ? '🚫' : (item.name?.[0]?.toUpperCase() || 'R')}
+                      </Text>
                     </View>
 
                     <View style={{ flex: 1 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                         <Text style={[styles.listItemTitle, { color: colors.text }, isSelected && { color: colors.primary }]}>
                           {item.name}
                         </Text>
@@ -449,6 +457,11 @@ const CollectFaloScreen = ({ navigation, route }) => {
                             <Text style={[styles.flatBadgeText, { color: colors.primary }]}>Flat {item.houseOrFlatNo}</Text>
                           </View>
                         ) : null}
+                        {isExcluded && (
+                          <View style={{ backgroundColor: '#EF444422', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ fontSize: 10, fontWeight: '800', color: colors.danger }}>EXCLUDED</Text>
+                          </View>
+                        )}
                       </View>
                       <Text style={[styles.listItemSub, { color: colors.textMuted }]}>📱 {item.phone}</Text>
                     </View>

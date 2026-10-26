@@ -13,11 +13,11 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, Modal, ActivityIndicator, ScrollView,
+  RefreshControl, Modal, ActivityIndicator, ScrollView, TextInput,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect }    from '@react-navigation/native';
-import { eventsAPI }        from '../../services/api';
+import { eventsAPI, residentsAPI } from '../../services/api';
 import { useAlert }         from '../../context/AlertContext';
 import { useTheme }         from '../../context/ThemeContext';
 import Input                 from '../../components/Input';
@@ -25,15 +25,18 @@ import Button                from '../../components/Button';
 import DatePickerInput       from '../../components/DatePickerInput';
 import { SPACING }           from '../../constants';
 
+import EventDetailsModal from '../../components/EventDetailsModal';
+
 const fmt = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
 const EMPTY_EVENT = {
-  title:          '',
-  description:    '',
-  targetBudget:   '',
-  perHouseAmount: '', // Empty by default so user can type directly without backspacing '0'
-  startDate:      '',
-  endDate:        '',
+  title:             '',
+  description:       '',
+  targetBudget:      '',
+  perHouseAmount:    '', // Empty by default so user can type directly without backspacing '0'
+  startDate:         '',
+  endDate:           '',
+  excludedResidents: [],
 };
 
 const EventsScreen = () => {
@@ -41,9 +44,13 @@ const EventsScreen = () => {
   const { showError, showSuccess, showConfirm } = useAlert();
   const { colors }                         = useTheme();
 
-  const [events,      setEvents]      = useState([]);
-  const [loading,     setLoading]     = useState(true);
-  const [refreshing,  setRefreshing]  = useState(false);
+  const [events,        setEvents]        = useState([]);
+  const [residents,     setResidents]     = useState([]);
+  const [loading,       setLoading]       = useState(true);
+  const [refreshing,    setRefreshing]    = useState(false);
+
+  // Details Modal State
+  const [selectedDetailsEvent, setSelectedDetailsEvent] = useState(null);
 
   // Modal State
   const [modalOpen,   setModalOpen]   = useState(false);
@@ -51,16 +58,30 @@ const EventsScreen = () => {
   const [submitting,  setSubmitting]  = useState(false);
   const [form,        setForm]        = useState(EMPTY_EVENT);
   const [errors,      setErrors]      = useState({});
+  const [residentSearch, setResidentSearch] = useState('');
 
   const setField = (key, val) => {
     setForm((f) => ({ ...f, [key]: val }));
     setErrors((e) => ({ ...e, [key]: '' }));
   };
 
+  const toggleExcludeResident = (id) => {
+    setForm((f) => {
+      const current = f.excludedResidents || [];
+      const updated = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+      return { ...f, excludedResidents: updated };
+    });
+  };
+
   const fetchData = useCallback(async () => {
     try {
-      const res = await eventsAPI.getAll();
-      setEvents(res.data.data || []);
+      const [eRes, rRes] = await Promise.all([
+        eventsAPI.getAll(),
+        residentsAPI.getAll().catch(() => ({ data: { data: { residents: [] } } })),
+      ]);
+      setEvents(eRes.data.data || []);
+      const rList = rRes.data?.data?.residents || rRes.data?.data || [];
+      setResidents(rList);
     } catch (err) {
       showError('Error', err.message);
     } finally {
@@ -77,20 +98,24 @@ const EventsScreen = () => {
     setEditItem(null);
     setForm(EMPTY_EVENT);
     setErrors({});
+    setResidentSearch('');
     setModalOpen(true);
   };
 
   const openEdit = (ev) => {
     setEditItem(ev);
+    const excludedIds = ev.excludedResidents ? ev.excludedResidents.map((r) => r._id || r) : [];
     setForm({
-      title:          ev.title || '',
-      description:    ev.description || '',
-      targetBudget:   String(ev.targetBudget || ''),
-      perHouseAmount: ev.perHouseAmount ? String(ev.perHouseAmount) : '',
-      startDate:      ev.startDate ? ev.startDate.slice(0, 10) : '',
-      endDate:        ev.endDate   ? ev.endDate.slice(0, 10)   : '',
+      title:             ev.title || '',
+      description:       ev.description || '',
+      targetBudget:      String(ev.targetBudget || ''),
+      perHouseAmount:    ev.perHouseAmount ? String(ev.perHouseAmount) : '',
+      startDate:         ev.startDate ? ev.startDate.slice(0, 10) : '',
+      endDate:           ev.endDate   ? ev.endDate.slice(0, 10)   : '',
+      excludedResidents: excludedIds,
     });
     setErrors({});
+    setResidentSearch('');
     setModalOpen(true);
   };
 
@@ -109,12 +134,13 @@ const EventsScreen = () => {
     setSubmitting(true);
     try {
       const payload = {
-        title:          form.title.trim(),
-        description:    form.description.trim(),
-        targetBudget:   Number(form.targetBudget),
-        perHouseAmount: Number(form.perHouseAmount) || 0,
-        startDate:      form.startDate.trim() || undefined,
-        endDate:        form.endDate.trim()   || undefined,
+        title:             form.title.trim(),
+        description:       form.description.trim(),
+        targetBudget:      Number(form.targetBudget),
+        perHouseAmount:    Number(form.perHouseAmount) || 0,
+        startDate:         form.startDate.trim() || undefined,
+        endDate:           form.endDate.trim()   || undefined,
+        excludedResidents: form.excludedResidents || [],
       };
 
       if (editItem) {
@@ -175,6 +201,11 @@ const EventsScreen = () => {
     );
   }
 
+  const filteredResidentsForForm = residents.filter((r) => {
+    const q = residentSearch.toLowerCase();
+    return (r.name || '').toLowerCase().includes(q) || String(r.houseOrFlatNo || '').toLowerCase().includes(q);
+  });
+
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
       {/* ── Header ── */}
@@ -200,67 +231,88 @@ const EventsScreen = () => {
         data={events}
         keyExtractor={(item) => item._id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
-        renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={styles.cardHeader}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.eventTitle, { color: colors.text }]}>{item.title}</Text>
-                {!!item.description && (
-                  <Text style={[styles.desc, { color: colors.textMuted }]}>{item.description}</Text>
-                )}
-              </View>
-              <View style={[styles.badge, item.isActive ? { backgroundColor: colors.success + '22' } : { backgroundColor: colors.textMuted + '22' }]}>
-                <Text style={[styles.badgeText, { color: item.isActive ? colors.success : colors.textMuted }]}>
-                  {item.isActive ? 'Active' : 'Closed'}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.detailGrid}>
-              <View style={styles.detailCol}>
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Target Budget</Text>
-                <Text style={[styles.detailVal, { color: colors.primary }]}>{fmt(item.targetBudget)}</Text>
-              </View>
-
-              <View style={styles.detailCol}>
-                <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Per House</Text>
-                <Text style={[styles.detailVal, { color: colors.text }]}>{item.perHouseAmount ? fmt(item.perHouseAmount) : '—'}</Text>
-              </View>
-
-              {!!item.startDate && (
-                <View style={styles.detailCol}>
-                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Dates</Text>
-                  <Text style={[styles.detailVal, { color: colors.text, fontSize: 11 }]}>
-                    {item.startDate.slice(0, 10)} {item.endDate ? `to ${item.endDate.slice(0, 10)}` : ''}
+        renderItem={({ item }) => {
+          const excludedCount = item.excludedResidents?.length || 0;
+          return (
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => setSelectedDetailsEvent(item)}
+              style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+              <View style={styles.cardHeader}>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                    <Text style={[styles.eventTitle, { color: colors.text }]}>{item.title}</Text>
+                    {excludedCount > 0 && (
+                      <View style={{ backgroundColor: '#EF444422', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#DC2626' }}>
+                          🚫 {excludedCount} Excluded
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  {!!item.description && (
+                    <Text style={[styles.desc, { color: colors.textMuted }]}>{item.description}</Text>
+                  )}
+                </View>
+                <View style={[styles.badge, item.isActive ? { backgroundColor: colors.success + '22' } : { backgroundColor: colors.textMuted + '22' }]}>
+                  <Text style={[styles.badgeText, { color: item.isActive ? colors.success : colors.textMuted }]}>
+                    {item.isActive ? 'Active' : 'Closed'}
                   </Text>
                 </View>
-              )}
-            </View>
+              </View>
 
-            {/* Action buttons */}
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={[styles.btnOutline, { borderColor: colors.border }]}
-                onPress={() => openEdit(item)}>
-                <Text style={[styles.btnOutlineText, { color: colors.primary }]}>✏️ Edit</Text>
-              </TouchableOpacity>
+              <View style={styles.detailGrid}>
+                <View style={styles.detailCol}>
+                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Target Budget</Text>
+                  <Text style={[styles.detailVal, { color: colors.primary }]}>{fmt(item.targetBudget)}</Text>
+                </View>
 
-              <TouchableOpacity
-                style={[styles.btnOutline, { borderColor: colors.border }]}
-                onPress={() => handleToggleActive(item)}>
-                <Text style={[styles.btnOutlineText, { color: item.isActive ? colors.warning : colors.success }]}>
-                  {item.isActive ? '🔒 Close' : '✅ Reopen'}
-                </Text>
-              </TouchableOpacity>
+                <View style={styles.detailCol}>
+                  <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Per House</Text>
+                  <Text style={[styles.detailVal, { color: colors.text }]}>{item.perHouseAmount ? fmt(item.perHouseAmount) : '—'}</Text>
+                </View>
 
-              <TouchableOpacity
-                style={[styles.btnOutline, { borderColor: colors.danger + '44' }]}
-                onPress={() => handleDelete(item)}>
-                <Text style={[styles.btnOutlineText, { color: colors.danger }]}>🗑 Delete</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
+                {!!item.startDate && (
+                  <View style={styles.detailCol}>
+                    <Text style={[styles.detailLabel, { color: colors.textMuted }]}>Dates</Text>
+                    <Text style={[styles.detailVal, { color: colors.text, fontSize: 11 }]}>
+                      {item.startDate.slice(0, 10)} {item.endDate ? `to ${item.endDate.slice(0, 10)}` : ''}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {/* Action buttons */}
+              <View style={styles.actionRow}>
+                <TouchableOpacity
+                  style={[styles.btnOutline, { borderColor: colors.primary }]}
+                  onPress={() => setSelectedDetailsEvent(item)}>
+                  <Text style={[styles.btnOutlineText, { color: colors.primary }]}>👥 Paid Persons</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.btnOutline, { borderColor: colors.border }]}
+                  onPress={() => openEdit(item)}>
+                  <Text style={[styles.btnOutlineText, { color: colors.text }]}>✏️ Edit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.btnOutline, { borderColor: colors.border }]}
+                  onPress={() => handleToggleActive(item)}>
+                  <Text style={[styles.btnOutlineText, { color: item.isActive ? colors.warning : colors.success }]}>
+                    {item.isActive ? '🔒 Close' : '✅ Reopen'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.btnOutline, { borderColor: colors.danger + '44' }]}
+                  onPress={() => handleDelete(item)}>
+                  <Text style={[styles.btnOutlineText, { color: colors.danger }]}>🗑 Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Text style={[styles.emptyEmoji]}>🗓</Text>
@@ -337,6 +389,64 @@ const EventsScreen = () => {
                 onChangeText={(t) => setField('description', t)}
                 multiline
               />
+
+              {/* ── Exclude Persons Section ── */}
+              <View style={{ marginTop: SPACING.sm }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
+                    🚫 EXCLUDE PERSONS FROM EVENT (OPTIONAL)
+                  </Text>
+                  {form.excludedResidents?.length > 0 && (
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: colors.danger }}>
+                      {form.excludedResidents.length} Excluded
+                    </Text>
+                  )}
+                </View>
+
+                <TextInput
+                  style={{ height: 36, borderRadius: 8, borderWidth: 1, borderColor: colors.border, paddingHorizontal: 10, fontSize: 12, marginBottom: 6, color: colors.text, backgroundColor: colors.background }}
+                  placeholder="Filter residents..."
+                  placeholderTextColor={colors.textMuted}
+                  value={residentSearch}
+                  onChangeText={setResidentSearch}
+                />
+
+                <View style={{ maxHeight: 130, borderRadius: 10, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background, padding: 4 }}>
+                  <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+                    {filteredResidentsForForm.length === 0 ? (
+                      <Text style={{ fontSize: 12, color: colors.textMuted, fontStyle: 'italic', padding: 8, textAlign: 'center' }}>
+                        No residents found
+                      </Text>
+                    ) : (
+                      filteredResidentsForForm.map((r) => {
+                        const isExcluded = form.excludedResidents?.includes(r._id);
+                        return (
+                          <TouchableOpacity
+                            key={r._id}
+                            onPress={() => toggleExcludeResident(r._id)}
+                            style={{
+                              flexDirection: 'row',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              paddingVertical: 6,
+                              paddingHorizontal: 8,
+                              borderRadius: 6,
+                              marginBottom: 2,
+                              backgroundColor: isExcluded ? '#EF444415' : 'transparent',
+                            }}>
+                            <Text style={{ fontSize: 12, fontWeight: isExcluded ? '800' : '600', color: isExcluded ? colors.danger : colors.text }}>
+                              {r.name} ({r.houseOrFlatNo ? `Flat ${r.houseOrFlatNo}` : r.phone})
+                            </Text>
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: isExcluded ? colors.danger : colors.textMuted }}>
+                              {isExcluded ? '✓ Excluded' : '○'}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </View>
+              </View>
             </ScrollView>
 
             <View style={styles.btnRow}>
@@ -356,6 +466,13 @@ const EventsScreen = () => {
           </View>
         </View>
       </Modal>
+
+      {/* ─── Event Details Modal ─── */}
+      <EventDetailsModal
+        visible={!!selectedDetailsEvent}
+        onClose={() => setSelectedDetailsEvent(null)}
+        event={selectedDetailsEvent}
+      />
     </View>
   );
 };

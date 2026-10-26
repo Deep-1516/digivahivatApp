@@ -18,6 +18,7 @@ import { useAuth }        from '../../context/AuthContext';
 import { useAlert }       from '../../context/AlertContext';
 import { useTheme }       from '../../context/ThemeContext';
 import { eventsAPI, residentsAPI } from '../../services/api';
+import EventDetailsModal from '../../components/EventDetailsModal';
 import StatCard    from '../../components/StatCard';
 import ProgressBar from '../../components/ProgressBar';
 import Button      from '../../components/Button';
@@ -35,6 +36,7 @@ const DashboardScreen = ({ navigation }) => {
   const [refreshing,  setRefreshing]  = useState(false);
   const [loading,     setLoading]     = useState(true);
   const [activeEvent, setActiveEvent] = useState(null);
+  const [showModal,   setShowModal]   = useState(false);
 
   const fetchData = useCallback(async () => {
     try {
@@ -64,80 +66,106 @@ const DashboardScreen = ({ navigation }) => {
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
+  const paidCount = dashboard?.paidPersonsCount ?? dashboard?.contributorsCount ?? 0;
+
   return (
-    <ScrollView
-      style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}>
+    <View style={{ flex: 1 }}>
+      <ScrollView
+        style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}>
 
-      {/* ── Header ── */}
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.textMuted }]}>🙏 Jai Ganesh!</Text>
-          <Text style={[styles.userName, { color: colors.text }]}>{user?.name}</Text>
-          {user?.houseOrFlatNo ? <Text style={[styles.flat, { color: colors.textMuted }]}>Flat {user.houseOrFlatNo}</Text> : null}
-        </View>
-        <TouchableOpacity onPress={logout}>
-          <Text style={[styles.logoutBtn, { color: colors.danger }]}>Logout</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* ── Active Event ── */}
-      {activeEvent ? (
-        <View style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.eventTitle, { color: colors.primary }]}>{activeEvent.title}</Text>
-          <ProgressBar
-            progress={dashboard?.budgetProgress ?? 0}
-            label="Collection Progress"
-          />
-          <Text style={[styles.eventSub, { color: colors.textMuted }]}>
-            Target: {fmt(activeEvent.targetBudget)}
-          </Text>
-        </View>
-      ) : (
-        <View style={styles.noEvent}>
-          <Text style={[styles.noEventText, { color: colors.textMuted }]}>No active event. Check back later.</Text>
-        </View>
-      )}
-
-      {/* ── Financial Stats ── */}
-      {dashboard && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Financial Summary</Text>
-          <View style={styles.statsRow}>
-            <StatCard label="Total Collected" value={fmt(dashboard.totalCollection)} color={colors.success} />
-            <StatCard label="Total Spent"     value={fmt(dashboard.totalExpenses)}  color={colors.danger}  />
+        {/* ── Header ── */}
+        <View style={styles.headerRow}>
+          <View>
+            <Text style={[styles.greeting, { color: colors.textMuted }]}>🙏 Jai Ganesh!</Text>
+            <Text style={[styles.userName, { color: colors.text }]}>{user?.name}</Text>
+            {user?.houseOrFlatNo ? <Text style={[styles.flat, { color: colors.textMuted }]}>Flat {user.houseOrFlatNo}</Text> : null}
           </View>
-          <View style={styles.statsRow}>
-            <StatCard
-              label="Net Balance"
-              value={fmt(dashboard.netBalance)}
-              color={dashboard.netBalance >= 0 ? colors.success : colors.danger}
+          <TouchableOpacity onPress={logout}>
+            <Text style={[styles.logoutBtn, { color: colors.danger }]}>Logout</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Active Event ── */}
+        {activeEvent ? (
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => setShowModal(true)}
+            style={[styles.eventCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Text style={[styles.eventTitle, { color: colors.primary }]}>{activeEvent.title}</Text>
+              <View style={{ backgroundColor: colors.primary + '22', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 8 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.primary }}>
+                  👥 {paidCount} Paid
+                </Text>
+              </View>
+            </View>
+            <ProgressBar
+              progress={dashboard?.budgetProgress ?? 0}
+              label="Collection Progress"
             />
-            <StatCard label="Contributors" value={String(dashboard.contributorsCount)} color={colors.info} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
+              <Text style={[styles.eventSub, { color: colors.textMuted }]}>
+                Target: {fmt(activeEvent.targetBudget)}
+              </Text>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: colors.primary }}>
+                Tap to view details ➔
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.noEvent}>
+            <Text style={[styles.noEventText, { color: colors.textMuted }]}>No active event. Check back later.</Text>
           </View>
-        </>
-      )}
+        )}
 
-      {/* ── Society Stats ── */}
-      {societyStats && (
-        <>
-          <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Society Overview</Text>
-          <View style={styles.statsRow}>
-            <StatCard label="Registered Houses" value={String(societyStats.totalHouses)}     color={colors.primary} />
-            <StatCard label="Total Members"     value={String(societyStats.totalPopulation)} color={colors.secondary} />
-          </View>
-        </>
-      )}
+        {/* ── Financial Stats ── */}
+        {dashboard && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Financial Summary</Text>
+            <View style={styles.statsRow}>
+              <StatCard label="Total Collected" value={fmt(dashboard.totalCollection)} color={colors.success} />
+              <StatCard label="Total Spent"     value={fmt(dashboard.totalExpenses)}  color={colors.danger}  />
+            </View>
+            <View style={styles.statsRow}>
+              <StatCard
+                label="Net Balance"
+                value={fmt(dashboard.netBalance)}
+                color={dashboard.netBalance >= 0 ? colors.success : colors.danger}
+              />
+              <StatCard label="Paid Persons" value={`${paidCount} Persons`} color={colors.info} />
+            </View>
+          </>
+        )}
 
-      {/* ── Quick Actions ── */}
-      <Button
-        title="View My Payment Status →"
-        onPress={() => navigation.navigate('MyPayment')}
-        variant="outline"
-        style={{ marginTop: SPACING.md }}
+        {/* ── Society Stats ── */}
+        {societyStats && (
+          <>
+            <Text style={[styles.sectionTitle, { color: colors.textMuted }]}>Society Overview</Text>
+            <View style={styles.statsRow}>
+              <StatCard label="Registered Houses" value={String(societyStats.totalHouses)}     color={colors.primary} />
+              <StatCard label="Total Members"     value={String(societyStats.totalPopulation)} color={colors.secondary} />
+            </View>
+          </>
+        )}
+
+        {/* ── Quick Actions ── */}
+        <Button
+          title="View My Payment Status →"
+          onPress={() => navigation.navigate('MyPayment')}
+          variant="outline"
+          style={{ marginTop: SPACING.md }}
+        />
+      </ScrollView>
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        visible={showModal}
+        onClose={() => setShowModal(false)}
+        event={activeEvent}
       />
-    </ScrollView>
+    </View>
   );
 };
 
