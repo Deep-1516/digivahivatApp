@@ -123,6 +123,21 @@ export const contributionsAPI = {
   record:     (data)   => api.post('/contributions', data),
   getAll:     (params) => api.get('/contributions', { params }),
   pdfReceipt: (id)     => api.get(`/contributions/${id}/pdf-receipt`, { responseType: 'blob' }),
+  getReceiptDownloadUrl: async (id, inline = false) => {
+    let token = '';
+    try {
+      const raw = await AsyncStorage.getItem('@falo_auth');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        token = parsed.token || '';
+      }
+    } catch (_) {}
+    const queryParts = [];
+    if (token) queryParts.push(`token=${encodeURIComponent(token)}`);
+    if (inline) queryParts.push('view=1');
+    const qs = queryParts.length > 0 ? `?${queryParts.join('&')}` : '';
+    return `${API_BASE_URL}/contributions/${id}/pdf-receipt${qs}`;
+  },
   remove:     (id)     => api.delete(`/contributions/${id}`),
 };
 
@@ -146,3 +161,52 @@ export const expensesAPI = {
   updateStatus: (id, status, rejectionReason) => api.patch(`/expenses/${id}/status`, { status, rejectionReason }),
   remove:       (id)     => api.delete(`/expenses/${id}`),
 };
+
+// ════════════════════════════════════════════════════════════════════════════
+// NOTICES (Notice Board)
+// ════════════════════════════════════════════════════════════════════════════
+export const noticesAPI = {
+  create:  (data)         => api.post('/notices', data),
+  getAll:  (params)       => api.get('/notices', { params }),
+  getById: (id)           => api.get(`/notices/${id}`),
+  update:  (id, data)     => api.patch(`/notices/${id}`, data),
+  remove:  (id)           => api.delete(`/notices/${id}`),
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// COMPLAINTS & REQUESTS (Member Helpdesk)
+// ════════════════════════════════════════════════════════════════════════════
+export const complaintsAPI = {
+  create:       (data)        => api.post('/complaints', data),
+  getAll:       (params)      => api.get('/complaints', { params }),
+  getById:      (id)          => api.get(`/complaints/${id}`),
+  updateStatus: (id, payload) => api.patch(`/complaints/${id}/status`, payload),
+  remove:       (id)          => api.delete(`/complaints/${id}`),
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// VISITORS (Gate Pass & Pre-Approval VMS)
+// ════════════════════════════════════════════════════════════════════════════
+export const visitorsAPI = {
+  preApprove:         (data)   => api.post('/visitors/pre-approve', data),
+  verify:             (data)   => api.post('/visitors/verify', data),
+  checkin:            (data)   => api.post('/visitors/checkin', data),
+  checkout:           (id)     => api.post(`/visitors/${id}/checkout`),
+  getSocietyRegister: (params) => api.get('/visitors/society-register', { params }),
+  getMyVisitors:      ()       => api.get('/visitors/my-visitors'),
+  cancel:             (id)     => api.patch(`/visitors/${id}/cancel`),
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// EMERGENCY SOS
+// ════════════════════════════════════════════════════════════════════════════
+export const sosAPI = {
+  trigger:     (data)        => api.post('/sos', data),
+  getActive:   ()            => api.get('/sos/active'),
+  getHistory:  ()            => api.get('/sos/history'),
+  acknowledge: (id)          => api.put(`/sos/${id}/acknowledge`),
+  resolve:     (id, payload) => api.put(`/sos/${id}/resolve`, payload),
+  cancel:      (id, payload) => api.put(`/sos/${id}/cancel`, payload),
+};
+
+

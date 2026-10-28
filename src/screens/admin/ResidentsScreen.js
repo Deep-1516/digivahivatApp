@@ -15,6 +15,7 @@ import { residentsAPI }  from '../../services/api';
 import { useAlert }      from '../../context/AlertContext';
 import { useTheme }      from '../../context/ThemeContext';
 import Input              from '../../components/Input';
+import Icon               from '../../components/Icon';
 import { COLORS, SPACING }  from '../../constants';
 
 const ResidentsScreen = ({ navigation }) => {
@@ -67,14 +68,15 @@ const ResidentsScreen = ({ navigation }) => {
           <Text style={[styles.sub, { color: colors.textMuted }]}>{residents.length} total residents</Text>
         </View>
         <TouchableOpacity
-          style={[styles.addBtn, { backgroundColor: colors.primary }]}
+          style={[styles.addBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
           onPress={() => navigation.navigate('AddResident')}>
-          <Text style={styles.addBtnText}>+ Add Resident</Text>
+          <Icon name="plus" size={16} color={COLORS.white} />
+          <Text style={styles.addBtnText}>Add Resident</Text>
         </TouchableOpacity>
       </View>
 
       <Input
-        placeholder="🔍 Search name, phone, or flat..."
+        placeholder="Search name, phone, or flat..."
         value={search}
         onChangeText={setSearch}
         containerStyle={{ marginHorizontal: SPACING.md, marginVertical: SPACING.xs }}
@@ -92,9 +94,16 @@ const ResidentsScreen = ({ navigation }) => {
               </View>
               <View style={styles.info}>
                 <Text style={[styles.name, { color: colors.text }]}>{item.name}</Text>
-                <Text style={[styles.details, { color: colors.textMuted }]}>
-                  📱 {item.phone}  ·  👨‍👩‍👧‍👦 {item.totalMembers || 1} members
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 12, marginTop: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Icon name="phone-outline" size={13} color={colors.textMuted} />
+                    <Text style={[styles.details, { color: colors.textMuted, marginTop: 0 }]}>{item.phone}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Icon name="account-group" size={14} color={colors.textMuted} />
+                    <Text style={[styles.details, { color: colors.textMuted, marginTop: 0 }]}>{item.totalMembers || 1} members</Text>
+                  </View>
+                </View>
                 {item.houseOrFlatNo ? (
                   <Text style={[styles.flat, { color: colors.textMuted }]}>Flat / House: {item.houseOrFlatNo}</Text>
                 ) : null}

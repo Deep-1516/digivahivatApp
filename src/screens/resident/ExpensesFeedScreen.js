@@ -58,7 +58,7 @@ const ExpensesFeedScreen = ({ navigation }) => {
   const handleStatusUpdate = async (item, status, rejectionReason = '') => {
     try {
       await expensesAPI.updateStatus(item._id, status, rejectionReason);
-      showSuccess('Updated ✅', `Expense status updated to ${status}.`);
+      showSuccess('Updated', `Expense status updated to ${status}.`);
       fetchData();
     } catch (err) {
       showError('Error', err.message);
@@ -67,7 +67,7 @@ const ExpensesFeedScreen = ({ navigation }) => {
 
   const handleRejectPrompt = (item) => {
     showAlert({
-      title: 'Reject Expense ⚠️',
+      title: 'Reject Expense',
       message: `Reject "${item.title}" (₹${item.amount.toLocaleString('en-IN')})? Choose a rejection reason:`,
       type: 'warning',
       buttons: [

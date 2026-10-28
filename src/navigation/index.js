@@ -34,10 +34,21 @@ import LogExpenseScreen        from '../screens/admin/LogExpenseScreen';
 import ResidentsScreen         from '../screens/admin/ResidentsScreen';
 import AddResidentScreen       from '../screens/admin/AddResidentScreen';
 import EventsScreen            from '../screens/admin/EventsScreen';
+import MaintenanceScreen       from '../screens/admin/MaintenanceScreen';
+// ─── Shared & Helpdesk Screens ──────────────────────────────────────────
+import NoticeBoardScreen       from '../screens/shared/NoticeBoardScreen';
+import SosEmergencyScreen     from '../screens/shared/SosEmergencyScreen';
+import MemberComplaintsScreen  from '../screens/resident/MemberComplaintsScreen';
+import AdminComplaintsScreen   from '../screens/admin/AdminComplaintsScreen';
+// ─── Visitor Management Screens ──────────────────────────────────────────
+import MyVisitorsScreen        from '../screens/resident/MyVisitorsScreen';
+import GateVisitorsScreen      from '../screens/admin/GateVisitorsScreen';
 
 // ─── SuperAdmin Screens ──────────────────────────────────────────────────
 import SuperAdminDashboardScreen from '../screens/superadmin/DashboardScreen';
 import SocietiesScreen          from '../screens/superadmin/SocietiesScreen';
+
+import Icon from '../components/Icon';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -61,14 +72,14 @@ const SuperAdminTabs = () => {
           backgroundColor:       colors.surface,
           borderTopColor:        colors.border,
           borderTopWidth:        1,
-          height:                64,
+          height:                66,
           paddingBottom:         10,
           paddingTop:            8,
           elevation:             8,
-          shadowColor:           colors.cardShadow,
+          shadowColor:           '#4F46E5',
           shadowOffset:          { width: 0, height: -4 },
-          shadowOpacity:         0.05,
-          shadowRadius:          10,
+          shadowOpacity:         0.07,
+          shadowRadius:          12,
         },
         tabBarLabelStyle:        { fontSize: 11, fontWeight: '700' },
       }}>
@@ -77,7 +88,7 @@ const SuperAdminTabs = () => {
         component={SuperAdminDashboardScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ focused }) => renderTabIcon('🏠', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('home', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -85,7 +96,7 @@ const SuperAdminTabs = () => {
         component={SocietiesScreen}
         options={{
           tabBarLabel: 'Society',
-          tabBarIcon: ({ focused }) => renderTabIcon('🏘', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('domain', focused, colors.primary),
         }}
       />
     </Tab.Navigator>
@@ -101,17 +112,22 @@ const AuthStack = () => (
 );
 
 // ─── Tab Icon Component ───────────────────────────────────────────────────────
-const renderTabIcon = (emoji, focused, primaryColor) => (
+const renderTabIcon = (iconName, focused, primaryColor, family = 'MaterialCommunityIcons') => (
   <View
     style={{
       alignItems: 'center',
       justifyContent: 'center',
-      width: 30,
-      height: 28,
-      borderRadius: 14,
-      backgroundColor: focused ? primaryColor + '22' : 'transparent',
+      width: 42,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: focused ? primaryColor + '18' : 'transparent',
     }}>
-    <Text style={{ fontSize: 17, opacity: focused ? 1 : 0.6 }}>{emoji}</Text>
+    <Icon
+      name={iconName}
+      size={21}
+      color={focused ? primaryColor : '#94A3B8'}
+      family={family}
+    />
   </View>
 );
 
@@ -129,14 +145,14 @@ const ResidentTabs = () => {
           backgroundColor:       colors.surface,
           borderTopColor:        colors.border,
           borderTopWidth:        1,
-          height:                64,
+          height:                66,
           paddingBottom:         10,
           paddingTop:            8,
           elevation:             8,
-          shadowColor:           colors.cardShadow,
+          shadowColor:           '#4F46E5',
           shadowOffset:          { width: 0, height: -4 },
-          shadowOpacity:         0.05,
-          shadowRadius:          10,
+          shadowOpacity:         0.07,
+          shadowRadius:          12,
         },
         tabBarLabelStyle:        { fontSize: 11, fontWeight: '700' },
       }}>
@@ -145,7 +161,23 @@ const ResidentTabs = () => {
         component={ResidentDashboardScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ focused }) => renderTabIcon('🏠', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('home', focused, colors.primary),
+        }}
+      />
+      <Tab.Screen
+        name="NoticeBoard"
+        component={NoticeBoardScreen}
+        options={{
+          tabBarLabel: 'Notices',
+          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, colors.primary),
+        }}
+      />
+      <Tab.Screen
+        name="Helpdesk"
+        component={MemberComplaintsScreen}
+        options={{
+          tabBarLabel: 'Helpdesk',
+          tabBarIcon: ({ focused }) => renderTabIcon('lifebuoy', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -153,7 +185,7 @@ const ResidentTabs = () => {
         component={MyContributionScreen}
         options={{
           tabBarLabel: 'My Payment',
-          tabBarIcon: ({ focused }) => renderTabIcon('💳', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('credit-card-outline', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -161,7 +193,7 @@ const ResidentTabs = () => {
         component={ExpensesFeedScreen}
         options={{
           tabBarLabel: 'Expenses',
-          tabBarIcon: ({ focused }) => renderTabIcon('🧾', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('receipt', focused, colors.primary),
         }}
       />
     </Tab.Navigator>
@@ -180,11 +212,17 @@ const AdminStack = () => {
         headerTitleStyle:    { fontWeight: '800', fontSize: 18 },
         headerShadowVisible: false,
       }}>
-      <Stack.Screen name="AdminTabs"   component={AdminTabs}          options={{ headerShown: false }} />
-      <Stack.Screen name="CollectFalo" component={CollectFaloScreen}  options={{ title: 'Collect Falo (Payment)' }} />
-      <Stack.Screen name="LogExpense"  component={LogExpenseScreen}   options={{ title: 'Log Expense' }} />
-      <Stack.Screen name="AddResident" component={AddResidentScreen}  options={{ title: 'Add Resident' }} />
-      <Stack.Screen name="Events"      component={EventsScreen}       options={{ title: 'Manage Events' }} />
+      <Stack.Screen name="AdminTabs"       component={AdminTabs}              options={{ headerShown: false }} />
+      <Stack.Screen name="CollectFalo"     component={CollectFaloScreen}      options={{ title: 'Collect Falo (Payment)' }} />
+      <Stack.Screen name="LogExpense"      component={LogExpenseScreen}       options={{ title: 'Log Expense' }} />
+      <Stack.Screen name="AddResident"     component={AddResidentScreen}      options={{ title: 'Add Resident' }} />
+      <Stack.Screen name="Events"          component={EventsScreen}           options={{ title: 'Manage Events' }} />
+      <Stack.Screen name="NoticeBoard"     component={NoticeBoardScreen}      options={{ headerShown: false }} />
+      <Stack.Screen name="Helpdesk"        component={AdminComplaintsScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="AdminComplaints" component={AdminComplaintsScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="GateVisitors"    component={GateVisitorsScreen}     options={{ headerShown: false }} />
+      <Stack.Screen name="Maintenance"     component={MaintenanceScreen}      options={{ headerShown: false }} />
+      <Stack.Screen name="SosEmergency"    component={SosEmergencyScreen}     options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 };
@@ -202,23 +240,39 @@ const AdminTabs = () => {
           backgroundColor:       colors.surface,
           borderTopColor:        colors.border,
           borderTopWidth:        1,
-          height:                64,
+          height:                66,
           paddingBottom:         10,
           paddingTop:            8,
           elevation:             8,
-          shadowColor:           colors.cardShadow,
+          shadowColor:           '#4F46E5',
           shadowOffset:          { width: 0, height: -4 },
-          shadowOpacity:         0.05,
-          shadowRadius:          10,
+          shadowOpacity:         0.07,
+          shadowRadius:          12,
         },
-        tabBarLabelStyle:        { fontSize: 11, fontWeight: '700' },
+        tabBarLabelStyle:        { fontSize: 10.5, fontWeight: '700' },
       }}>
       <Tab.Screen
         name="AdminDashboard"
         component={AdminDashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ focused }) => renderTabIcon('📊', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('view-dashboard', focused, colors.primary),
+        }}
+      />
+      <Tab.Screen
+        name="NoticeBoard"
+        component={NoticeBoardScreen}
+        options={{
+          tabBarLabel: 'Notices',
+          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, colors.primary),
+        }}
+      />
+      <Tab.Screen
+        name="Helpdesk"
+        component={AdminComplaintsScreen}
+        options={{
+          tabBarLabel: 'Helpdesk',
+          tabBarIcon: ({ focused }) => renderTabIcon('lifebuoy', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -226,7 +280,7 @@ const AdminTabs = () => {
         component={ResidentsScreen}
         options={{
           tabBarLabel: 'Residents',
-          tabBarIcon: ({ focused }) => renderTabIcon('👥', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('account-group', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -234,7 +288,7 @@ const AdminTabs = () => {
         component={ExpensesFeedScreen}
         options={{
           tabBarLabel: 'Expenses',
-          tabBarIcon: ({ focused }) => renderTabIcon('🧾', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('receipt', focused, colors.primary),
         }}
       />
     </Tab.Navigator>
@@ -253,8 +307,14 @@ const ResidentStack = () => {
         headerTitleStyle:    { fontWeight: '800', fontSize: 18 },
         headerShadowVisible: false,
       }}>
-      <Stack.Screen name="ResidentTabs" component={ResidentTabs}    options={{ headerShown: false }} />
-      <Stack.Screen name="LogExpense"   component={LogExpenseScreen} options={{ title: 'Log Expense' }} />
+      <Stack.Screen name="ResidentTabs" component={ResidentTabs}           options={{ headerShown: false }} />
+      <Stack.Screen name="LogExpense"   component={LogExpenseScreen}        options={{ title: 'Log Expense' }} />
+      <Stack.Screen name="NoticeBoard"  component={NoticeBoardScreen}       options={{ headerShown: false }} />
+      <Stack.Screen name="Helpdesk"     component={MemberComplaintsScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="Complaints"   component={MemberComplaintsScreen}  options={{ headerShown: false }} />
+      <Stack.Screen name="MyVisitors"   component={MyVisitorsScreen}        options={{ headerShown: false }} />
+      <Stack.Screen name="Maintenance"  component={MaintenanceScreen}       options={{ headerShown: false }} />
+      <Stack.Screen name="SosEmergency" component={SosEmergencyScreen}      options={{ headerShown: false }} />
     </Stack.Navigator>
   );
 };

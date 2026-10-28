@@ -23,7 +23,8 @@ import { useTheme }         from '../../context/ThemeContext';
 import Input                 from '../../components/Input';
 import Button                from '../../components/Button';
 import DatePickerInput       from '../../components/DatePickerInput';
-import { SPACING }           from '../../constants';
+import { SPACING, getEventStatus } from '../../constants';
+import Icon                  from '../../components/Icon';
 
 import EventDetailsModal from '../../components/EventDetailsModal';
 
@@ -145,10 +146,10 @@ const EventsScreen = () => {
 
       if (editItem) {
         await eventsAPI.update(editItem._id, payload);
-        showSuccess('Updated ✅', `Event "${form.title}" updated successfully.`);
+        showSuccess('Updated', `Event "${form.title}" updated successfully.`);
       } else {
         await eventsAPI.create({ ...payload, isActive: true });
-        showSuccess('Event Created 🎉', `Event "${form.title}" created successfully.`);
+        showSuccess('Event Created', `Event "${form.title}" created successfully.`);
       }
 
       setModalOpen(false);
@@ -243,9 +244,10 @@ const EventsScreen = () => {
                   <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                     <Text style={[styles.eventTitle, { color: colors.text }]}>{item.title}</Text>
                     {excludedCount > 0 && (
-                      <View style={{ backgroundColor: '#EF444422', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                      <View style={{ backgroundColor: '#EF444422', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, flexDirection: 'row', alignItems: 'center' }}>
+                        <Icon name="account-cancel-outline" size={12} color="#DC2626" style={{ marginRight: 3 }} />
                         <Text style={{ fontSize: 10, fontWeight: '800', color: '#DC2626' }}>
-                          🚫 {excludedCount} Excluded
+                          {excludedCount} Excluded
                         </Text>
                       </View>
                     )}
@@ -254,11 +256,21 @@ const EventsScreen = () => {
                     <Text style={[styles.desc, { color: colors.textMuted }]}>{item.description}</Text>
                   )}
                 </View>
-                <View style={[styles.badge, item.isActive ? { backgroundColor: colors.success + '22' } : { backgroundColor: colors.textMuted + '22' }]}>
-                  <Text style={[styles.badgeText, { color: item.isActive ? colors.success : colors.textMuted }]}>
-                    {item.isActive ? 'Active' : 'Closed'}
-                  </Text>
-                </View>
+                {(() => {
+                  const st = getEventStatus(item);
+                  const cfg = {
+                    active:   { label: 'Active',   color: colors.success },
+                    upcoming: { label: 'Upcoming', color: colors.info },
+                    closed:   { label: 'Closed',   color: colors.textMuted },
+                  }[st] || { label: 'Closed', color: colors.textMuted };
+                  return (
+                    <View style={[styles.badge, { backgroundColor: cfg.color + '22' }]}>
+                      <Text style={[styles.badgeText, { color: cfg.color }]}>
+                        {cfg.label}
+                      </Text>
+                    </View>
+                  );
+                })()}
               </View>
 
               <View style={styles.detailGrid}>
@@ -285,29 +297,38 @@ const EventsScreen = () => {
               {/* Action buttons */}
               <View style={styles.actionRow}>
                 <TouchableOpacity
-                  style={[styles.btnOutline, { borderColor: colors.primary }]}
+                  style={[styles.btnOutline, { borderColor: colors.primary, flexDirection: 'row', alignItems: 'center' }]}
                   onPress={() => setSelectedDetailsEvent(item)}>
-                  <Text style={[styles.btnOutlineText, { color: colors.primary }]}>👥 Paid Persons</Text>
+                  <Icon name="account-group" size={13} color={colors.primary} style={{ marginRight: 4 }} />
+                  <Text style={[styles.btnOutlineText, { color: colors.primary }]}>Paid Persons</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.btnOutline, { borderColor: colors.border }]}
+                  style={[styles.btnOutline, { borderColor: colors.border, flexDirection: 'row', alignItems: 'center' }]}
                   onPress={() => openEdit(item)}>
-                  <Text style={[styles.btnOutlineText, { color: colors.text }]}>✏️ Edit</Text>
+                  <Icon name="pencil-outline" size={13} color={colors.text} style={{ marginRight: 4 }} />
+                  <Text style={[styles.btnOutlineText, { color: colors.text }]}>Edit</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.btnOutline, { borderColor: colors.border }]}
+                  style={[styles.btnOutline, { borderColor: colors.border, flexDirection: 'row', alignItems: 'center' }]}
                   onPress={() => handleToggleActive(item)}>
+                  <Icon
+                    name={item.isActive ? 'lock-outline' : 'lock-open-outline'}
+                    size={13}
+                    color={item.isActive ? colors.warning : colors.success}
+                    style={{ marginRight: 4 }}
+                  />
                   <Text style={[styles.btnOutlineText, { color: item.isActive ? colors.warning : colors.success }]}>
-                    {item.isActive ? '🔒 Close' : '✅ Reopen'}
+                    {item.isActive ? 'Close' : 'Reopen'}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={[styles.btnOutline, { borderColor: colors.danger + '44' }]}
+                  style={[styles.btnOutline, { borderColor: colors.danger + '44', flexDirection: 'row', alignItems: 'center' }]}
                   onPress={() => handleDelete(item)}>
-                  <Text style={[styles.btnOutlineText, { color: colors.danger }]}>🗑 Delete</Text>
+                  <Icon name="delete-outline" size={13} color={colors.danger} style={{ marginRight: 4 }} />
+                  <Text style={[styles.btnOutlineText, { color: colors.danger }]}>Delete</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -315,7 +336,7 @@ const EventsScreen = () => {
         }}
         ListEmptyComponent={
           <View style={styles.empty}>
-            <Text style={[styles.emptyEmoji]}>🗓</Text>
+            <Icon name="calendar-blank-outline" size={48} color={colors.textMuted} style={{ marginBottom: 12 }} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No Events Created</Text>
             <Text style={[styles.emptyText, { color: colors.textMuted }]}>Create your first festival event above.</Text>
           </View>
@@ -328,7 +349,7 @@ const EventsScreen = () => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {editItem ? `✏️ Edit: ${editItem.title}` : '🗓 Create New Event'}
+              {editItem ? `Edit: ${editItem.title}` : 'Create New Event'}
             </Text>
 
             <ScrollView keyboardShouldPersistTaps="handled">
@@ -393,9 +414,12 @@ const EventsScreen = () => {
               {/* ── Exclude Persons Section ── */}
               <View style={{ marginTop: SPACING.sm }}>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                  <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
-                    🚫 EXCLUDE PERSONS FROM EVENT (OPTIONAL)
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Icon name="account-cancel-outline" size={15} color="#DC2626" style={{ marginRight: 4 }} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: colors.text }}>
+                      EXCLUDE PERSONS FROM EVENT (OPTIONAL)
+                    </Text>
+                  </View>
                   {form.excludedResidents?.length > 0 && (
                     <Text style={{ fontSize: 11, fontWeight: '800', color: colors.danger }}>
                       {form.excludedResidents.length} Excluded
@@ -437,8 +461,8 @@ const EventsScreen = () => {
                             <Text style={{ fontSize: 12, fontWeight: isExcluded ? '800' : '600', color: isExcluded ? colors.danger : colors.text }}>
                               {r.name} ({r.houseOrFlatNo ? `Flat ${r.houseOrFlatNo}` : r.phone})
                             </Text>
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: isExcluded ? colors.danger : colors.textMuted }}>
-                              {isExcluded ? '✓ Excluded' : '○'}
+                            <Text style={{ fontSize: 13, fontWeight: '800', color: isExcluded ? colors.danger : colors.textMuted }}>
+                              {isExcluded ? 'Excluded' : '—'}
                             </Text>
                           </TouchableOpacity>
                         );
@@ -457,7 +481,7 @@ const EventsScreen = () => {
                 style={{ flex: 1 }}
               />
               <Button
-                title={editItem ? 'Save Changes' : 'Create Event 🎉'}
+                title={editItem ? 'Save Changes' : 'Create Event'}
                 onPress={handleSaveEvent}
                 loading={submitting}
                 style={{ flex: 1, marginLeft: SPACING.sm }}

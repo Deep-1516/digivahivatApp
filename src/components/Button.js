@@ -23,11 +23,12 @@ const Button = ({
   const bgColor = {
     primary:   colors.primary,
     secondary: colors.secondary,
+    subtle:    colors.primaryLight,
     danger:    colors.danger,
     outline:   'transparent',
-  }[variant];
+  }[variant] || colors.primary;
 
-  const textColor = variant === 'outline' ? colors.primary : colors.white;
+  const textColor = variant === 'outline' || variant === 'subtle' ? colors.primary : colors.white;
   const borderColor = variant === 'outline' ? colors.primary : 'transparent';
 
   return (
@@ -35,13 +36,19 @@ const Button = ({
       style={[
         styles.btn,
         { backgroundColor: bgColor, borderColor, borderWidth: variant === 'outline' ? 1.5 : 0 },
-        variant === 'primary' && { elevation: 4, shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8 },
+        variant === 'primary' && {
+          elevation: 4,
+          shadowColor: colors.primary,
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.28,
+          shadowRadius: 12,
+        },
         (disabled || loading) && styles.disabled,
         style,
       ]}
       onPress={onPress}
       disabled={disabled || loading}
-      activeOpacity={0.75}>
+      activeOpacity={0.78}>
       {loading
         ? <ActivityIndicator color={textColor} size="small" />
         : <Text style={[styles.text, { color: textColor }, textStyle]}>{title}</Text>}
@@ -62,7 +69,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize:   15,
     fontWeight: '800',
-    letterSpacing: 0.2,
+    letterSpacing: 0.3,
   },
 });
 

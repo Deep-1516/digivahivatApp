@@ -17,6 +17,7 @@ import { eventsAPI, contributionsAPI } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
 import ProgressBar from './ProgressBar';
 import { SPACING } from '../constants';
+import Icon from './Icon';
 
 const fmt = (n) => `₹${Number(n ?? 0).toLocaleString('en-IN')}`;
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
@@ -72,11 +73,11 @@ export default function EventDetailsModal({ visible, onClose, event }) {
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: colors.text }]}>{event.title}</Text>
               <Text style={[styles.sub, { color: colors.textMuted }]}>
-                {event.startDate ? `📅 ${fmtDate(event.startDate)}` : ''} {event.endDate ? ` → ${fmtDate(event.endDate)}` : ''}
+                {event.startDate ? `${fmtDate(event.startDate)}` : ''}{event.endDate ? ` - ${fmtDate(event.endDate)}` : ''}
               </Text>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Text style={{ fontSize: 18, color: colors.textMuted, fontWeight: '800' }}>✕</Text>
+              <Icon name="close" size={22} color={colors.textMuted} />
             </TouchableOpacity>
           </View>
 
@@ -89,9 +90,12 @@ export default function EventDetailsModal({ visible, onClose, event }) {
               {/* Persons Paid Banner */}
               <View style={[styles.bannerCard, { backgroundColor: colors.primary + '15', borderColor: colors.primary }]}>
                 <Text style={[styles.bannerLabel, { color: colors.primary }]}>PERSONS PAID FUND FOR THIS EVENT</Text>
-                <Text style={[styles.bannerCount, { color: colors.primary }]}>
-                  👥 {paidCount} {paidCount === 1 ? 'Person' : 'Persons'} Paid
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 4 }}>
+                  <Icon name="account-group" size={24} color={colors.primary} style={{ marginRight: 6 }} />
+                  <Text style={[styles.bannerCount, { color: colors.primary }]}>
+                    {paidCount} {paidCount === 1 ? 'Person' : 'Persons'} Paid
+                  </Text>
+                </View>
                 <Text style={[styles.bannerSub, { color: colors.textMuted }]}>
                   Total Collected: {fmt(dashboard?.totalCollection)}
                 </Text>
@@ -127,9 +131,12 @@ export default function EventDetailsModal({ visible, onClose, event }) {
               {/* Excluded Residents */}
               {event.excludedResidents && event.excludedResidents.length > 0 && (
                 <View style={[styles.sectionMargin, { backgroundColor: '#EF444415', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#EF444444' }]}>
-                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#DC2626', marginBottom: 6 }}>
-                    🚫 EXCLUDED RESIDENTS ({event.excludedResidents.length})
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                    <Icon name="account-cancel-outline" size={16} color="#DC2626" style={{ marginRight: 4 }} />
+                    <Text style={{ fontSize: 12, fontWeight: '800', color: '#DC2626' }}>
+                      EXCLUDED RESIDENTS ({event.excludedResidents.length})
+                    </Text>
+                  </View>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
                     {event.excludedResidents.map((r) => (
                       <View key={r._id || r} style={{ backgroundColor: colors.surface, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, borderColor: '#EF444444' }}>
@@ -144,9 +151,12 @@ export default function EventDetailsModal({ visible, onClose, event }) {
 
               {/* Paid Persons List */}
               <View style={styles.sectionMargin}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>
-                  💳 Paid Fund Members ({contributions.length})
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <Icon name="credit-card-check-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                  <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                    Paid Fund Members ({contributions.length})
+                  </Text>
+                </View>
 
                 <TextInput
                   style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
@@ -208,20 +218,20 @@ const styles = StyleSheet.create({
 
   sectionMargin:{ marginBottom: SPACING.md },
   statsGrid:    { flexDirection: 'row', gap: 6, marginBottom: SPACING.md },
-  statBox:      { flex: 1, padding: 8, borderRadius: 10, alignItems: 'center' },
-  statLabel:    { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-  statVal:      { fontSize: 13, fontWeight: '800', marginTop: 2 },
+  statBox:      { flex: 1, padding: 10, borderRadius: 12, alignItems: 'center' },
+  statLabel:    { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
+  statVal:      { fontSize: 13.5, fontWeight: '800', marginTop: 3 },
 
   sectionTitle: { fontSize: 15, fontWeight: '800', marginBottom: 8 },
-  searchInput:  { height: 38, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, fontSize: 13, marginBottom: 8 },
+  searchInput:  { height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, fontSize: 13.5, marginBottom: 8 },
   emptyBox:     { padding: 16, alignItems: 'center' },
 
   itemCard: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 10,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 14,
     borderWidth: 1,
     marginBottom: 6,
   },

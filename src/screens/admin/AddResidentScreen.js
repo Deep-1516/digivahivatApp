@@ -52,7 +52,7 @@ const AddResidentScreen = ({ navigation }) => {
         totalMembers:  parseInt(totalMembers, 10),
         role,
       });
-      showSuccess('Success ✅', `${role} created successfully.`, () => navigation.goBack());
+      showSuccess('Success', `${role} created successfully.`, () => navigation.goBack());
     } catch (err) {
       showError('Error', err.message);
     } finally {
@@ -121,7 +121,7 @@ const AddResidentScreen = ({ navigation }) => {
         </View>
 
         <Button
-          title="Create Resident Account 👤"
+          title="Create Resident Account"
           onPress={handleSubmit}
           loading={submitting}
           style={{ marginTop: SPACING.md }}

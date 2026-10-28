@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING } from '../constants';
+import Icon from './Icon';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -118,7 +119,7 @@ const DatePickerInput = ({
         <Text style={[styles.inputText, { color: value ? colors.text : colors.textMuted }]}>
           {value ? value : placeholder}
         </Text>
-        <Text style={styles.calendarIcon}>📅</Text>
+        <Icon name="calendar-month-outline" size={20} color={colors.primary} />
       </TouchableOpacity>
 
       {error ? <Text style={[styles.error, { color: colors.danger }]}>{error}</Text> : null}
@@ -130,7 +131,7 @@ const DatePickerInput = ({
             {/* Modal Header */}
             <View style={styles.monthHeader}>
               <TouchableOpacity onPress={handlePrevMonth} style={styles.navArrowBtn}>
-                <Text style={[styles.navArrow, { color: colors.text }]}>◀</Text>
+                <Icon name="chevron-left" size={22} color={colors.text} />
               </TouchableOpacity>
 
               <Text style={[styles.monthYearTitle, { color: colors.text }]}>
@@ -138,7 +139,7 @@ const DatePickerInput = ({
               </Text>
 
               <TouchableOpacity onPress={handleNextMonth} style={styles.navArrowBtn}>
-                <Text style={[styles.navArrow, { color: colors.text }]}>▶</Text>
+                <Icon name="chevron-right" size={22} color={colors.text} />
               </TouchableOpacity>
             </View>
 

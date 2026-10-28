@@ -78,7 +78,7 @@ const RegisterScreen = ({ navigation }) => {
           <Input label="Flat / House No"      placeholder="e.g. A-204 (optional)"     value={form.houseOrFlatNo} onChangeText={set('houseOrFlatNo')} error={errors.houseOrFlatNo} />
           <Input label="Total Family Members *" placeholder="e.g. 4"                value={form.totalMembers} onChangeText={set('totalMembers')} keyboardType="number-pad" error={errors.totalMembers} />
 
-          <Button title="Create Resident Account ✨" onPress={handleRegister} loading={loading} style={styles.btn} />
+          <Button title="Create Resident Account" onPress={handleRegister} loading={loading} style={styles.btn} />
 
           <TouchableOpacity style={styles.link} onPress={() => navigation.goBack()}>
             <Text style={[styles.linkText, { color: colors.textMuted }]}>

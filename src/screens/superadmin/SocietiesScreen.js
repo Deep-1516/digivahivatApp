@@ -11,6 +11,7 @@ import { useTheme }     from '../../context/ThemeContext';
 import { societiesAPI, residentsAPI } from '../../services/api';
 import Input            from '../../components/Input';
 import Button           from '../../components/Button';
+import Icon             from '../../components/Icon';
 import { SPACING }      from '../../constants';
 
 const EMPTY_SOCIETY = { name: '', city: '', address: '', isActive: true };
@@ -105,10 +106,10 @@ const SocietiesScreen = ({ navigation }) => {
 
       if (editItem) {
         await societiesAPI.update(editItem._id, payload);
-        showSuccess('Updated ✅', `Society "${form.name}" updated successfully.`);
+        showSuccess('Updated', `Society "${form.name}" updated successfully.`);
       } else {
         await societiesAPI.create(payload);
-        showSuccess('Created ✅', `Society "${form.name}" created successfully! Now assign an Admin to it.`);
+        showSuccess('Created', `Society "${form.name}" created successfully! Now assign an Admin to it.`);
       }
       setModalVisible(false);
       fetchSocieties();
@@ -206,7 +207,7 @@ const SocietiesScreen = ({ navigation }) => {
         }
 
         await residentsAPI.update(editingAdmin._id, updatePayload);
-        showSuccess('Admin Updated ✅', `Admin "${adminForm.name}" profile updated.`);
+        showSuccess('Admin Updated', `Admin "${adminForm.name}" profile updated.`);
       } else {
         // Create new admin for this society
         await residentsAPI.add({
@@ -219,7 +220,7 @@ const SocietiesScreen = ({ navigation }) => {
           totalMembers:  parseInt(adminForm.totalMembers, 10) || 1,
         });
         showSuccess(
-          'Admin Assigned 🎉',
+          'Admin Assigned',
           `New Admin "${adminForm.name}" created for ${adminSociety.name}.\nThey can login with mobile ${adminForm.phone}.`
         );
       }
@@ -249,7 +250,12 @@ const SocietiesScreen = ({ navigation }) => {
           <View style={{ flex: 1 }}>
             <Text style={[styles.societyName, { color: colors.text }]}>{item.name}</Text>
             {!!item.city && (
-              <Text style={[styles.societySub, { color: colors.textMuted }]}>📍 {item.city} {item.address ? `• ${item.address}` : ''}</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 }}>
+                <Icon name="map-marker-outline" size={13} color={colors.textMuted} />
+                <Text style={[styles.societySub, { color: colors.textMuted, marginTop: 0 }]}>
+                  {item.city} {item.address ? `• ${item.address}` : ''}
+                </Text>
+              </View>
             )}
           </View>
           <View style={[styles.badge, { backgroundColor: item.isActive !== false ? colors.success + '22' : colors.textMuted + '22' }]}>
@@ -259,36 +265,48 @@ const SocietiesScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <View style={styles.statsRow}>
+        <View style={[styles.statsRow, { flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+          <Icon name="account-group" size={15} color={colors.textMuted} />
           <Text style={[styles.statText, { color: colors.textMuted }]}>
-            👥 Total Residents: <Text style={{ color: colors.text, fontWeight: '700' }}>{item.residentCount || 0}</Text>
+            Total Residents: <Text style={{ color: colors.text, fontWeight: '700' }}>{item.residentCount || 0}</Text>
           </Text>
         </View>
 
         {/* ─── Assigned Admins List ─── */}
         <View style={styles.adminSection}>
-          <Text style={[styles.adminSectionHeader, { color: colors.textMuted }]}>
-            👑 Assigned Admins ({adminList.length})
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+            <Icon name="shield-account" size={15} color={colors.primary} />
+            <Text style={[styles.adminSectionHeader, { color: colors.textMuted, marginBottom: 0 }]}>
+              Assigned Admins ({adminList.length})
+            </Text>
+          </View>
 
           {adminList.length > 0 ? (
             adminList.map((adm) => (
               <View key={adm._id} style={[styles.adminCardRow, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.adminNameText, { color: colors.primary }]}>👤 {adm.name}</Text>
-                  <Text style={[styles.adminPhoneText, { color: colors.textMuted }]}>📱 {adm.phone}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                    <Icon name="account" size={14} color={colors.primary} />
+                    <Text style={[styles.adminNameText, { color: colors.primary }]}>{adm.name}</Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                    <Icon name="phone-outline" size={12} color={colors.textMuted} />
+                    <Text style={[styles.adminPhoneText, { color: colors.textMuted, marginTop: 0 }]}>{adm.phone}</Text>
+                  </View>
                 </View>
                 <TouchableOpacity
-                  style={[styles.editAdminBtn, { backgroundColor: colors.primary }]}
+                  style={[styles.editAdminBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
                   onPress={() => openEditAdmin(item, adm)}>
-                  <Text style={styles.editAdminBtnText}>✏️ Edit Admin</Text>
+                  <Icon name="pencil" size={12} color="#fff" />
+                  <Text style={styles.editAdminBtnText}>Edit Admin</Text>
                 </TouchableOpacity>
               </View>
             ))
           ) : (
-            <View style={[styles.adminCardRow, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30' }]}>
-              <Text style={[styles.adminPhoneText, { color: colors.warning, fontWeight: '700' }]}>
-                ⚠️ No Admin assigned yet
+            <View style={[styles.adminCardRow, { backgroundColor: colors.warning + '12', borderColor: colors.warning + '30', flexDirection: 'row', alignItems: 'center', gap: 6 }]}>
+              <Icon name="alert-circle-outline" size={15} color={colors.warning} />
+              <Text style={[styles.adminPhoneText, { color: colors.warning, fontWeight: '700', marginTop: 0 }]}>
+                No Admin assigned yet
               </Text>
             </View>
           )}
@@ -338,7 +356,10 @@ const SocietiesScreen = ({ navigation }) => {
         }
       ]}>
         <View>
-          <Text style={[styles.title, { color: colors.text }]}>👑 Societies Panel</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Icon name="shield-crown-outline" size={20} color={colors.primary} />
+            <Text style={[styles.title, { color: colors.text }]}>Societies Panel</Text>
+          </View>
           <Text style={[styles.subtitle, { color: colors.textMuted }]}>Manage Societies & Assign Admins</Text>
         </View>
         <TouchableOpacity
@@ -373,7 +394,7 @@ const SocietiesScreen = ({ navigation }) => {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyEmoji}>🏘</Text>
+              <Icon name="domain" size={48} color={colors.textMuted} style={{ marginBottom: 8 }} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>No Societies Found</Text>
               <Text style={[styles.emptySub, { color: colors.textMuted }]}>Create your first society to assign an admin and get started.</Text>
             </View>
@@ -386,7 +407,7 @@ const SocietiesScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {editItem ? `Edit: ${editItem.name}` : '✨ Create New Society'}
+              {editItem ? `Edit: ${editItem.name}` : 'Create New Society'}
             </Text>
 
             <ScrollView keyboardShouldPersistTaps="handled">
@@ -443,7 +464,7 @@ const SocietiesScreen = ({ navigation }) => {
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, { backgroundColor: colors.surface }]}>
             <Text style={[styles.modalTitle, { color: colors.text }]}>
-              {editingAdmin ? `✏️ Edit Admin — ${editingAdmin.name}` : `👤 Assign New Admin — ${adminSociety?.name}`}
+              {editingAdmin ? `Edit Admin — ${editingAdmin.name}` : `Assign New Admin — ${adminSociety?.name}`}
             </Text>
 
             <ScrollView keyboardShouldPersistTaps="handled">
@@ -494,7 +515,7 @@ const SocietiesScreen = ({ navigation }) => {
                 style={styles.flexBtn}
               />
               <Button
-                title={editingAdmin ? 'Save Admin Changes' : 'Assign New Admin ✨'}
+                title={editingAdmin ? 'Save Admin Changes' : 'Assign New Admin'}
                 onPress={handleSaveAdmin}
                 loading={adminSaving}
                 style={styles.flexBtn}

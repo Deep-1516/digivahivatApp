@@ -10,6 +10,7 @@ import { useAlert }     from '../../context/AlertContext';
 import { useTheme }     from '../../context/ThemeContext';
 import { societiesAPI, residentsAPI } from '../../services/api';
 import StatCard         from '../../components/StatCard';
+import Icon             from '../../components/Icon';
 import { SPACING }      from '../../constants';
 
 const SuperAdminDashboardScreen = ({ navigation }) => {
@@ -78,10 +79,14 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
         {/* ─── Header ─── */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={[styles.title, { color: colors.text }]}>👑 Super Admin Dashboard</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="shield-crown-outline" size={22} color={colors.primary} />
+              <Text style={[styles.title, { color: colors.text }]}>Super Admin Dashboard</Text>
+            </View>
             <Text style={[styles.sub, { color: colors.textMuted }]}>Platform Overview • {user?.name}</Text>
           </View>
-          <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.danger + '18' }]}>
+          <TouchableOpacity onPress={handleLogout} style={[styles.logoutBtn, { backgroundColor: colors.danger + '18', flexDirection: 'row', alignItems: 'center', gap: 4 }]}>
+            <Icon name="logout" size={14} color={colors.danger} />
             <Text style={[styles.logoutText, { color: colors.danger }]}>Logout</Text>
           </TouchableOpacity>
         </View>
@@ -99,13 +104,18 @@ const SuperAdminDashboardScreen = ({ navigation }) => {
 
         {/* ─── Quick Navigation Card ─── */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>🚀 Quick Management</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <Icon name="lightning-bolt-outline" size={18} color={colors.primary} />
+            <Text style={[styles.cardTitle, { color: colors.text }]}>Quick Management</Text>
+          </View>
           <Text style={[styles.cardSub, { color: colors.textMuted }]}>Manage all registered societies and assign administrative credentials.</Text>
 
           <TouchableOpacity
-            style={[styles.actionBtn, { backgroundColor: colors.primary }]}
+            style={[styles.actionBtn, { backgroundColor: colors.primary, flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 8 }]}
             onPress={() => navigation.navigate('Society')}>
-            <Text style={styles.actionBtnText}>🏘 Manage Societies & Admins →</Text>
+            <Icon name="domain" size={18} color="#fff" />
+            <Text style={styles.actionBtnText}>Manage Societies & Admins</Text>
+            <Icon name="arrow-right" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
 

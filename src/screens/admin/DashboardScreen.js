@@ -10,33 +10,28 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { useAuth }        from '../../context/AuthContext';
 import { useAlert }       from '../../context/AlertContext';
 import { useTheme }       from '../../context/ThemeContext';
-import { eventsAPI, contributionsAPI } from '../../services/api';
+import { eventsAPI, contributionsAPI, sosAPI } from '../../services/api';
 import EventDetailsModal from '../../components/EventDetailsModal';
+import PdfReceiptModal   from '../../components/PdfReceiptModal';
+import ActiveSosBanner   from '../../components/ActiveSosBanner';
 import StatCard      from '../../components/StatCard';
 import ProgressBar   from '../../components/ProgressBar';
 import ContributionItem from '../../components/ContributionItem';
-import { COLORS, SPACING } from '../../constants';
+import { COLORS, SPACING, getEventStatus } from '../../constants';
+import Icon from '../../components/Icon';
 
 const fmt = (n) => `₹${Number(n ?? 0).toLocaleString('en-IN')}`;
 const fmtDate = (d) => {
   if (!d) return null;
   return new Date(d).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 };
-
-function getEventStatus(ev) {
-  if (!ev.isActive) return 'closed';
-  const now = Date.now();
-  const start = ev.startDate ? new Date(ev.startDate).getTime() : 0;
-  if (start > now) return 'upcoming';
-  return 'active';
-}
 
 const STATUS_CONFIG = {
   active:   { label: 'Active',   color: '#10B981', bg: 'rgba(16, 185, 129, 0.15)' },
@@ -54,17 +49,29 @@ const AdminDashboardScreen = ({ navigation }) => {
   const [loading,       setLoading]     = useState(true);
   const [refreshing,    setRefreshing]  = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [selectedReceipt, setSelectedReceipt] = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [activeSos, setActiveSos] = useState([]);
 
   const handleLogout = () => {
     hideAlert();
     authLogout();
   };
 
+  const handlePdfReceipt = (item) => {
+    setSelectedReceipt(item);
+    setShowReceiptModal(true);
+  };
+
   const fetchData = useCallback(async () => {
     if (!user) return;
     try {
-      const evRes = await eventsAPI.getAll();
+      const [evRes, sosRes] = await Promise.all([
+        eventsAPI.getAll(),
+        sosAPI.getActive(),
+      ]);
       const allEvents = evRes.data.data || [];
+      setActiveSos(sosRes.data?.data || []);
 
       if (allEvents.length === 0) {
         setEvents([]);
@@ -89,7 +96,7 @@ const AdminDashboardScreen = ({ navigation }) => {
       setEvents(enriched);
 
       // Fetch recent contributions for active event
-      const firstActive = enriched.find((e) => e.isActive) || enriched[0];
+      const firstActive = enriched.find((e) => getEventStatus(e) === 'active') || enriched[0];
       if (firstActive) {
         const cRes = await contributionsAPI.getAll({ eventId: firstActive._id });
         setRecentC((cRes.data.data || []).slice(0, 5));
@@ -111,7 +118,7 @@ const AdminDashboardScreen = ({ navigation }) => {
 
   const handleExport = (ev) => {
     showAlert({
-      title: 'Export Excel 📊',
+      title: 'Export Excel',
       message: `Financial report export requested for "${ev.title}".\n\nAPI: GET /api/events/${ev._id}/export/excel`,
       type: 'info',
     });
@@ -146,12 +153,20 @@ const AdminDashboardScreen = ({ navigation }) => {
           <View style={{ flex: 1, paddingRight: 8 }}>
             <Text style={[styles.eventTitle, { color: colors.text }]}>{ev.title}</Text>
             <View style={styles.dateRow}>
-              {ev.startDate && <Text style={[styles.dateText, { color: colors.textMuted }]}>📅 {fmtDate(ev.startDate)}</Text>}
-              {ev.endDate   && <Text style={[styles.dateText, { color: colors.textMuted }]}> → {fmtDate(ev.endDate)}</Text>}
+              {ev.startDate && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <Icon name="calendar-month-outline" size={13} color={colors.textMuted} style={{ marginRight: 3 }} />
+                  <Text style={[styles.dateText, { color: colors.textMuted }]}>{fmtDate(ev.startDate)}</Text>
+                </View>
+              )}
+              {ev.endDate   && <Text style={[styles.dateText, { color: colors.textMuted }]}> - {fmtDate(ev.endDate)}</Text>}
             </View>
-            <Text style={[styles.paidPersonsText, { color: colors.primary }]}>
-              👥 {paidCount} {paidCount === 1 ? 'Person' : 'Persons'} Paid Fund
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 3 }}>
+              <Icon name="account-group" size={14} color={colors.primary} style={{ marginRight: 4 }} />
+              <Text style={[styles.paidPersonsText, { color: colors.primary, marginTop: 0 }]}>
+                {paidCount} {paidCount === 1 ? 'Person' : 'Persons'} Paid Fund
+              </Text>
+            </View>
           </View>
           <View style={[styles.badge, { backgroundColor: cfg.bg }]}>
             <Text style={[styles.badgeText, { color: cfg.color }]}>{cfg.label}</Text>
@@ -186,20 +201,23 @@ const AdminDashboardScreen = ({ navigation }) => {
         {/* Action Buttons */}
         <View style={styles.cardActions}>
           <TouchableOpacity
-            style={[styles.actionBtnOutline, { borderColor: colors.primary, flex: 1 }]}
+            style={[styles.actionBtnOutline, { borderColor: colors.primary, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
             onPress={() => setSelectedEvent(ev)}>
-            <Text style={[styles.actionBtnOutlineText, { color: colors.primary }]}>👁 Paid Persons ({paidCount})</Text>
+            <Icon name="eye-outline" size={14} color={colors.primary} style={{ marginRight: 4 }} />
+            <Text style={[styles.actionBtnOutlineText, { color: colors.primary }]}>Paid Persons ({paidCount})</Text>
           </TouchableOpacity>
           {status === 'active' && (
             <>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 1 }]}
+                style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                 onPress={() => navigation.navigate('CollectFalo', { event: ev })}>
+                <Icon name="cash-plus" size={15} color="#FFF" style={{ marginRight: 4 }} />
                 <Text style={styles.actionBtnText}>+ Collect</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.actionBtn, { backgroundColor: colors.warning, flex: 1 }]}
+                style={[styles.actionBtn, { backgroundColor: colors.warning, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
                 onPress={() => navigation.navigate('LogExpense', { event: ev })}>
+                <Icon name="receipt" size={15} color="#FFF" style={{ marginRight: 4 }} />
                 <Text style={styles.actionBtnText}>+ Expense</Text>
               </TouchableOpacity>
             </>
@@ -226,17 +244,73 @@ const AdminDashboardScreen = ({ navigation }) => {
           </TouchableOpacity>
         </View>
 
+        {/* ─── Active Emergency SOS Banner ─── */}
+        <ActiveSosBanner alerts={activeSos} onPress={() => navigation.navigate('SosEmergency')} />
+
         {/* ─── Quick Nav Buttons ─── */}
         <View style={styles.quickNav}>
           <TouchableOpacity
-            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
-            onPress={() => navigation.navigate('Events')}>
-            <Text style={[styles.qBtnText, { color: colors.text }]}>🗓  Manage Events</Text>
+            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+            onPress={() => navigation.navigate('NoticeBoard')}>
+            <Icon name="bullhorn" size={16} color={colors.primary} style={{ marginRight: 6 }} />
+            <Text style={[styles.qBtnText, { color: colors.text }]}>Notice Board</Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+            onPress={() => navigation.navigate('Helpdesk')}>
+            <Icon name="lifebuoy" size={16} color={colors.secondary} style={{ marginRight: 6 }} />
+            <Text style={[styles.qBtnText, { color: colors.text }]}>Helpdesk</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.quickNav, { marginTop: -SPACING.xs }]}>
+          <TouchableOpacity
+            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+            onPress={() => navigation.navigate('Events')}>
+            <Icon name="calendar-month-outline" size={16} color={colors.info} style={{ marginRight: 6 }} />
+            <Text style={[styles.qBtnText, { color: colors.text }]}>Manage Events</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
             onPress={() => navigation.navigate('Residents')}>
-            <Text style={[styles.qBtnText, { color: colors.text }]}>👥 Residents</Text>
+            <Icon name="account-group" size={16} color={colors.success} style={{ marginRight: 6 }} />
+            <Text style={[styles.qBtnText, { color: colors.text }]}>Residents</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.quickNav, { marginTop: -SPACING.xs }]}>
+          <TouchableOpacity
+            style={[styles.qBtn, { backgroundColor: colors.primary + '14', borderColor: colors.primary, borderWidth: 1.2, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+            onPress={() => navigation.navigate('Maintenance')}>
+            <Icon name="cash-check" size={18} color={colors.primary} style={{ marginRight: 7 }} />
+            <Text style={[styles.qBtnText, { color: colors.primary, fontWeight: '800' }]}>Maintenance</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
+            onPress={() => navigation.navigate('GateVisitors')}>
+            <Icon name="shield-account" size={18} color={colors.secondary} style={{ marginRight: 7 }} />
+            <Text style={[styles.qBtnText, { color: colors.text }]}>Gate Visitors</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={[styles.quickNav, { marginTop: -SPACING.xs }]}>
+          <TouchableOpacity
+            style={[
+              styles.qBtn,
+              {
+                backgroundColor: activeSos.length > 0 ? '#DC262622' : colors.surface,
+                borderColor: activeSos.length > 0 ? '#DC2626' : colors.border,
+                borderWidth: activeSos.length > 0 ? 1.5 : 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+              },
+            ]}
+            onPress={() => navigation.navigate('SosEmergency')}>
+            <Icon name="alarm-light" size={18} color="#DC2626" style={{ marginRight: 7 }} />
+            <Text style={[styles.qBtnText, { color: '#DC2626', fontWeight: '800' }]}>
+              Emergency SOS {activeSos.length > 0 ? `(${activeSos.length} Active)` : ''}
+            </Text>
           </TouchableOpacity>
         </View>
 
@@ -284,7 +358,7 @@ const AdminDashboardScreen = ({ navigation }) => {
         {recentC.length > 0 && (
           <View style={{ marginTop: SPACING.md }}>
             <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: SPACING.xs }]}>Recent Collections</Text>
-            {recentC.map((c) => <ContributionItem key={c._id} item={c} />)}
+            {recentC.map((c) => <ContributionItem key={c._id} item={c} onPressReceipt={handlePdfReceipt} />)}
           </View>
         )}
       </ScrollView>
@@ -294,6 +368,16 @@ const AdminDashboardScreen = ({ navigation }) => {
         visible={!!selectedEvent}
         onClose={() => setSelectedEvent(null)}
         event={selectedEvent}
+      />
+
+      {/* ─── PDF Receipt Viewer Modal ─── */}
+      <PdfReceiptModal
+        visible={showReceiptModal}
+        item={selectedReceipt}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setSelectedReceipt(null);
+        }}
       />
     </View>
   );
@@ -312,24 +396,33 @@ const styles = StyleSheet.create({
   quickNav:   { flexDirection: 'row', marginBottom: SPACING.md, gap: SPACING.xs },
   qBtn:       {
     flex: 1,
-    borderRadius:    10,
+    borderRadius:    14,
     borderWidth:     1,
-    paddingVertical: 10,
+    paddingVertical: 12,
     alignItems:      'center',
+    elevation:       1.5,
+    shadowColor:     '#4F46E5',
+    shadowOffset:    { width: 0, height: 2 },
+    shadowOpacity:   0.04,
+    shadowRadius:    6,
   },
-  qBtnText:   { fontWeight: '700', fontSize: 12 },
+  qBtnText:   { fontWeight: '700', fontSize: 12.5 },
 
   sectionContainer: { marginBottom: SPACING.md },
   sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: SPACING.xs },
   dot:              { width: 8, height: 8, borderRadius: 4 },
-  sectionTitle:     { fontSize: 14, fontWeight: '800' },
+  sectionTitle:     { fontSize: 14, fontWeight: '800', letterSpacing: 0.2 },
 
   eventCard: {
-    borderRadius:    14,
+    borderRadius:    18,
     padding:         SPACING.md,
     marginBottom:    SPACING.sm,
     borderWidth:     1,
-    elevation:       2,
+    elevation:       2.5,
+    shadowColor:     '#4F46E5',
+    shadowOffset:    { width: 0, height: 4 },
+    shadowOpacity:   0.06,
+    shadowRadius:    12,
   },
   eventHeaderRow:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
   eventTitle:      { fontSize: 16, fontWeight: '800' },
@@ -338,29 +431,29 @@ const styles = StyleSheet.create({
   paidPersonsText: { fontSize: 12, fontWeight: '800', marginTop: 4 },
   perHouseText:   { fontSize: 12, fontWeight: '700', marginTop: 2 },
 
-  badge:          { borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4 },
+  badge:          { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4 },
   badgeText:      { fontSize: 11, fontWeight: '700' },
 
   statsGrid: { flexDirection: 'row', gap: 6, marginBottom: SPACING.sm },
-  statBox:   { flex: 1, padding: 8, borderRadius: 8, alignItems: 'center' },
-  statLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase' },
-  statValue: { fontSize: 13, fontWeight: '800', marginTop: 2 },
+  statBox:   { flex: 1, padding: 10, borderRadius: 12, alignItems: 'center' },
+  statLabel: { fontSize: 10, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6 },
+  statValue: { fontSize: 14, fontWeight: '800', marginTop: 3 },
 
-  cardActions:          { flexDirection: 'row', gap: 6, marginTop: 4 },
-  actionBtn:            { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  actionBtnText:        { color: '#FFF', fontSize: 12, fontWeight: '700' },
-  actionBtnOutline:     { paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8, borderWidth: 1, alignItems: 'center' },
-  actionBtnOutlineText: { fontSize: 12, fontWeight: '700' },
+  cardActions:          { flexDirection: 'row', gap: 8, marginTop: 6 },
+  actionBtn:            { flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
+  actionBtnText:        { color: '#FFF', fontSize: 12, fontWeight: '800' },
+  actionBtnOutline:     { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1.2, alignItems: 'center' },
+  actionBtnOutlineText: { fontSize: 12, fontWeight: '800' },
 
   createEventCta: {
     borderWidth:  1.5,
-    borderRadius: 12,
+    borderRadius: 16,
     borderStyle:  'dashed',
     padding:      SPACING.lg,
     alignItems:   'center',
     marginBottom: SPACING.md,
   },
-  createEventText: { fontWeight: '700', fontSize: 15 },
+  createEventText: { fontWeight: '800', fontSize: 15 },
 });
 
 export default AdminDashboardScreen;

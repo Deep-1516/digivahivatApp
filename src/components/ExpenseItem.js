@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { SPACING } from '../constants';
 import { useTheme } from '../context/ThemeContext';
+import Icon from './Icon';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -27,9 +28,9 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
   const { title, amount, category, date, receiptImageUrl, recordedBy, notes, status = 'Pending', rejectionReason, eventId } = item;
 
   const STATUS_STYLES = {
-    Pending:  { bg: isDark ? '#4A2800' : '#FFF3E0', text: '#FF9800', label: '⏳ Pending Approval' },
-    Approved: { bg: isDark ? '#1B3E20' : '#E8F5E9', text: '#4CAF50', label: '✅ Approved' },
-    Rejected: { bg: isDark ? '#4A151B' : '#FFEBEE', text: '#F44336', label: '❌ Rejected' },
+    Pending:  { bg: isDark ? '#4A2800' : '#FFF3E0', text: '#FF9800', label: 'Pending Approval', icon: 'clock-outline' },
+    Approved: { bg: isDark ? '#1B3E20' : '#E8F5E9', text: '#4CAF50', label: 'Approved', icon: 'check-circle-outline' },
+    Rejected: { bg: isDark ? '#4A151B' : '#FFEBEE', text: '#F44336', label: 'Rejected', icon: 'close-circle-outline' },
   };
 
   const dateStr = new Date(date).toLocaleDateString('en-IN', {
@@ -46,7 +47,7 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
     <>
       <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         {/* Event Title pill */}
-        <Text style={[styles.eventTitlePill, { color: colors.primary }]}>🎉 {eventTitle}</Text>
+        <Text style={[styles.eventTitlePill, { color: colors.primary }]}>{eventTitle}</Text>
 
         <View style={styles.row}>
           {/* Category pill & Status badge */}
@@ -54,7 +55,8 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
             <View style={[styles.catPill, { backgroundColor: catColor + '25' }]}>
               <Text style={[styles.catText, { color: catColor }]}>{category}</Text>
             </View>
-            <View style={[styles.catPill, { backgroundColor: stStyle.bg }]}>
+            <View style={[styles.catPill, { backgroundColor: stStyle.bg, flexDirection: 'row', alignItems: 'center' }]}>
+              <Icon name={stStyle.icon} size={12} color={stStyle.text} style={{ marginRight: 3 }} />
               <Text style={[styles.catText, { color: stStyle.text }]}>{stStyle.label}</Text>
             </View>
           </View>
@@ -68,9 +70,12 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
         {/* ── Rejection Reason Box (displayed to both Admin & Resident) ── */}
         {status === 'Rejected' && rejectionReason ? (
           <View style={[styles.rejectionBox, { backgroundColor: isDark ? '#3D1518' : '#FFEBEE', borderColor: isDark ? '#7F1D1D' : '#FFCDD2' }]}>
-            <Text style={[styles.rejectionText, { color: isDark ? '#EF4444' : '#C62828' }]}>
-              ⚠️ <Text style={{ fontWeight: '700' }}>Reason for rejection:</Text> {rejectionReason}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Icon name="alert-circle-outline" size={15} color={isDark ? '#EF4444' : '#C62828'} style={{ marginRight: 5, marginTop: 1 }} />
+              <Text style={[styles.rejectionText, { color: isDark ? '#EF4444' : '#C62828', flex: 1 }]}>
+                <Text style={{ fontWeight: '700' }}>Reason for rejection: </Text>{rejectionReason}
+              </Text>
+            </View>
           </View>
         ) : null}
 
@@ -78,13 +83,15 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
           <Text style={[styles.meta, { color: colors.textMuted }]}>{dateStr}  ·  {recordedBy?.name ?? 'Admin'}</Text>
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             {canEdit && onEdit ? (
-              <TouchableOpacity onPress={() => onEdit(item)} style={[styles.editBtn, { backgroundColor: colors.warning + '20' }]}>
-                <Text style={[styles.editBtnText, { color: colors.warning }]}>✎ Edit</Text>
+              <TouchableOpacity onPress={() => onEdit(item)} style={[styles.editBtn, { backgroundColor: colors.warning + '20', flexDirection: 'row', alignItems: 'center' }]}>
+                <Icon name="pencil-outline" size={13} color={colors.warning} style={{ marginRight: 3 }} />
+                <Text style={[styles.editBtnText, { color: colors.warning }]}>Edit</Text>
               </TouchableOpacity>
             ) : null}
             {receiptImageUrl ? (
-              <TouchableOpacity onPress={() => setImgVisible(true)} style={[styles.imgBtn, { backgroundColor: colors.info + '20' }]}>
-                <Text style={[styles.imgBtnText, { color: colors.info }]}>View Bill 🖼</Text>
+              <TouchableOpacity onPress={() => setImgVisible(true)} style={[styles.imgBtn, { backgroundColor: colors.info + '20', flexDirection: 'row', alignItems: 'center' }]}>
+                <Icon name="file-image-outline" size={13} color={colors.info} style={{ marginRight: 3 }} />
+                <Text style={[styles.imgBtnText, { color: colors.info }]}>View Bill</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -94,14 +101,16 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
         {isAdmin && status === 'Pending' && (
           <View style={[styles.adminActionRow, { borderTopColor: colors.border + '60' }]}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.success }]}
+              style={[styles.actionBtn, { backgroundColor: colors.success, flexDirection: 'row', alignItems: 'center' }]}
               onPress={() => onApprove && onApprove(item)}>
-              <Text style={styles.actionBtnText}>✓ Approve</Text>
+              <Icon name="check" size={14} color="#FFF" style={{ marginRight: 3 }} />
+              <Text style={styles.actionBtnText}>Approve</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.danger }]}
+              style={[styles.actionBtn, { backgroundColor: colors.danger, flexDirection: 'row', alignItems: 'center' }]}
               onPress={() => onReject && onReject(item)}>
-              <Text style={styles.actionBtnText}>✕ Reject</Text>
+              <Icon name="close" size={14} color="#FFF" style={{ marginRight: 3 }} />
+              <Text style={styles.actionBtnText}>Reject</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -124,33 +133,37 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius:    12,
+    borderRadius:    16,
     padding:         SPACING.md,
     marginBottom:    SPACING.sm,
     borderWidth:     1,
-    elevation:       1,
+    elevation:       2,
+    shadowColor:     '#4F46E5',
+    shadowOffset:    { width: 0, height: 3 },
+    shadowOpacity:   0.05,
+    shadowRadius:    8,
   },
-  eventTitlePill: { fontSize: 11, fontWeight: '700', marginBottom: 4 },
+  eventTitlePill: { fontSize: 11, fontWeight: '800', marginBottom: 5, letterSpacing: 0.2 },
   row:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  catPill: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
-  catText: { fontSize: 11, fontWeight: '600' },
-  amount:  { fontSize: 16, fontWeight: '800' },
-  title:   { fontSize: 14, fontWeight: '600', marginBottom: 3 },
-  notes:   { fontSize: 12, marginBottom: 4 },
+  catPill: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  catText: { fontSize: 11, fontWeight: '700' },
+  amount:  { fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  title:   { fontSize: 14, fontWeight: '700', marginBottom: 3 },
+  notes:   { fontSize: 12, marginBottom: 5 },
   rejectionBox: {
-    borderRadius: 8,
-    padding: 8,
-    marginTop: 4,
+    borderRadius: 12,
+    padding: 10,
+    marginTop: 5,
     marginBottom: 6,
     borderWidth: 1,
   },
   rejectionText: { fontSize: 12 },
-  footer:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 4 },
+  footer:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
   meta:    { fontSize: 11 },
-  editBtn: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
+  editBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
   editBtnText: { fontSize: 11, fontWeight: '700' },
-  imgBtn:  { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-  imgBtnText: { fontSize: 11, fontWeight: '600' },
+  imgBtn:  { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+  imgBtnText: { fontSize: 11, fontWeight: '700' },
   adminActionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -160,13 +173,13 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
   },
   actionBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
   },
   actionBtnText: {
     color: '#FFF',
-    fontWeight: '700',
+    fontWeight: '800',
     fontSize: 12,
   },
   // Modal

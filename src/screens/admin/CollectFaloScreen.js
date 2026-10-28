@@ -12,28 +12,27 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
   Platform, TouchableOpacity, ActivityIndicator, Modal,
-  TextInput, FlatList, SafeAreaView,
+  TextInput, FlatList, SafeAreaView, Linking,
 } from 'react-native';
 import { residentsAPI, eventsAPI, contributionsAPI } from '../../services/api';
 import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
 import Input  from '../../components/Input';
 import Button from '../../components/Button';
-import { COLORS, SPACING, PAYMENT_MODES, PAYMENT_STATUSES } from '../../constants';
-
-const CURRENT_YEAR = new Date().getFullYear();
-const YEAR_OPTIONS = Array.from({ length: 6 }, (_, i) => CURRENT_YEAR - 1 + i).map(String);
+import PdfReceiptModal from '../../components/PdfReceiptModal';
+import { COLORS, SPACING, PAYMENT_MODES, PAYMENT_STATUSES, getEventStatus } from '../../constants';
+import Icon from '../../components/Icon';
 
 const CollectFaloScreen = ({ navigation, route }) => {
-  const { showError, showSuccess } = useAlert();
+  const { showError, showSuccess, showAlert } = useAlert();
   const { colors } = useTheme();
   const [residents,  setResidents]  = useState([]);
   const [events,     setEvents]     = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [selectedReceipt,  setSelectedReceipt]  = useState(null);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
 
-  const [contributionType, setContributionType] = useState('Event'); // 'Event' | 'Annual'
-  const [annualYear,       setAnnualYear]       = useState(String(CURRENT_YEAR));
   const [selectedResident, setSelectedResident] = useState(null);
   const [selectedEvent,    setSelectedEvent]    = useState(null);
   const [amount,           setAmount]           = useState('');
@@ -54,7 +53,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
       try {
         const [rRes, eRes] = await Promise.all([residentsAPI.getAll(), eventsAPI.getAll()]);
         setResidents(rRes.data.data.residents || []);
-        const activeEvents = (eRes.data.data || []).filter((e) => e.isActive);
+        const activeEvents = (eRes.data.data || []).filter((e) => getEventStatus(e) === 'active');
         setEvents(activeEvents);
         const passedEvent = route.params?.event;
         if (passedEvent) {
@@ -83,13 +82,11 @@ const CollectFaloScreen = ({ navigation, route }) => {
     if (!selectedResident) {
       e.resident = 'Please select a resident.';
     } else if (
-      contributionType === 'Event' &&
       selectedEvent?.excludedResidents?.some((x) => (x._id || x) === selectedResident._id)
     ) {
       e.resident = `${selectedResident.name} is excluded from "${selectedEvent.title}" and cannot pay for this event.`;
     }
-    if (contributionType === 'Event' && !selectedEvent) e.event = 'Please select an event.';
-    if (contributionType === 'Annual' && !annualYear) e.annualYear = 'Please select a year.';
+    if (!selectedEvent) e.event = 'Please select an event.';
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) e.amount = 'Enter a valid amount.';
     if (paymentMode === 'UPI' && paymentStatus === 'Paid' && !transactionId.trim())
       e.transactionId = 'Transaction ID is required for UPI payments.';
@@ -102,7 +99,8 @@ const CollectFaloScreen = ({ navigation, route }) => {
     setSubmitting(true);
     try {
       const payload = {
-        contributionType,
+        contributionType: 'Event',
+        eventId:       selectedEvent._id,
         residentId:    selectedResident._id,
         amount:        Number(amount),
         paymentMode,
@@ -110,14 +108,34 @@ const CollectFaloScreen = ({ navigation, route }) => {
         transactionId: paymentMode === 'UPI' ? transactionId.trim() : null,
         notes:         notes.trim(),
       };
-      if (contributionType === 'Event') {
-        payload.eventId = selectedEvent._id;
-      } else {
-        payload.annualYear = Number(annualYear);
-      }
 
-      await contributionsAPI.record(payload);
-      showSuccess('Success ✅', 'Payment recorded successfully.', () => navigation.goBack());
+      const res = await contributionsAPI.record(payload);
+      const newContrib = res.data?.data;
+      if (newContrib?._id) {
+        newContrib.residentId = newContrib.residentId || selectedResident;
+        newContrib.eventId = newContrib.eventId || selectedEvent;
+        showAlert({
+          title: 'Payment Recorded',
+          message: `Payment of ₹${Number(amount).toLocaleString('en-IN')} recorded for ${selectedResident.name}.\n\nWould you like to view & download the official PDF receipt voucher?`,
+          type: 'success',
+          buttons: [
+            {
+              text: 'View PDF Receipt',
+              primary: true,
+              onPress: () => {
+                setSelectedReceipt(newContrib);
+                setShowReceiptModal(true);
+              },
+            },
+            {
+              text: 'Done',
+              onPress: () => navigation.goBack(),
+            },
+          ],
+        });
+      } else {
+        showSuccess('Success', 'Payment recorded successfully.', () => navigation.goBack());
+      }
     } catch (err) {
       showError('Error', err.message);
     } finally {
@@ -151,79 +169,23 @@ const CollectFaloScreen = ({ navigation, route }) => {
     <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
-        {/* ─── Contribution Type Toggle ─── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Contribution Type *</Text>
-        <View style={{ flexDirection: 'row', gap: SPACING.xs, marginBottom: SPACING.md }}>
-          {[
-            { value: 'Event', label: '🎪 Event Collection', desc: 'Linked to a specific event' },
-            { value: 'Annual', label: '📅 Annual Fund', desc: 'Yearly society maintenance fund' },
-          ].map((t) => {
-            const isActive = contributionType === t.value;
-            return (
-              <TouchableOpacity
-                key={t.value}
-                style={[
-                  styles.typeCard,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  isActive && { borderColor: colors.primary, backgroundColor: colors.primary + '12' }
-                ]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  setContributionType(t.value);
-                  setErrors({});
-                  if (t.value === 'Event' && selectedEvent?.perHouseAmount > 0) {
-                    setAmount(String(selectedEvent.perHouseAmount));
-                  }
-                }}>
-                <Text style={[styles.typeTitle, { color: colors.text }, isActive && { color: colors.primary }]}>{t.label}</Text>
-                <Text style={[styles.typeDesc, { color: colors.textMuted }]}>{t.desc}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
-        {/* ─── Conditional Selector: Event vs Annual Year ─── */}
-        {contributionType === 'Event' ? (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Event *</Text>
-            <TouchableOpacity
-              style={[styles.dropdownSelector, { backgroundColor: colors.surface, borderColor: colors.border }, errors.event && styles.dropdownError]}
-              activeOpacity={0.7}
-              onPress={() => { setEventSearchQuery(''); setEventModalVisible(true); }}>
-              <View style={{ flex: 1 }}>
-                <Text style={selectedEvent ? [styles.dropdownSelectedText, { color: colors.text }] : [styles.dropdownPlaceholderText, { color: colors.textMuted }]}>
-                  {selectedEvent ? selectedEvent.title : 'Select Event'}
-                </Text>
-                {selectedEvent?.perHouseAmount > 0 && (
-                  <Text style={[styles.dropdownSubText, { color: colors.primary }]}>Default per house: ₹{selectedEvent.perHouseAmount}</Text>
-                )}
-              </View>
-              <Text style={[styles.dropdownChevron, { color: colors.textMuted }]}>▼</Text>
-            </TouchableOpacity>
-            {errors.event && <Text style={styles.error}>{errors.event}</Text>}
-          </>
-        ) : (
-          <>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Annual Year *</Text>
-            <View style={{ flexDirection: 'row', gap: 8, marginBottom: SPACING.md, flexWrap: 'wrap' }}>
-              {YEAR_OPTIONS.map((y) => {
-                const isSelected = annualYear === y;
-                return (
-                  <TouchableOpacity
-                    key={y}
-                    style={[
-                      styles.yearChip,
-                      { backgroundColor: colors.surface, borderColor: colors.border },
-                      isSelected && { backgroundColor: colors.primary, borderColor: colors.primary }
-                    ]}
-                    onPress={() => setAnnualYear(y)}>
-                    <Text style={[styles.yearChipText, { color: colors.text }, isSelected && { color: '#FFF' }]}>{y}</Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </>
-        )}
+        {/* ─── Event Selector ─── */}
+        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Event *</Text>
+        <TouchableOpacity
+          style={[styles.dropdownSelector, { backgroundColor: colors.surface, borderColor: colors.border }, errors.event && styles.dropdownError]}
+          activeOpacity={0.7}
+          onPress={() => { setEventSearchQuery(''); setEventModalVisible(true); }}>
+          <View style={{ flex: 1 }}>
+            <Text style={selectedEvent ? [styles.dropdownSelectedText, { color: colors.text }] : [styles.dropdownPlaceholderText, { color: colors.textMuted }]}>
+              {selectedEvent ? selectedEvent.title : 'Select Event'}
+            </Text>
+            {selectedEvent?.perHouseAmount > 0 && (
+              <Text style={[styles.dropdownSubText, { color: colors.primary }]}>Default per house: ₹{selectedEvent.perHouseAmount}</Text>
+            )}
+          </View>
+          <Icon name="chevron-down" size={18} color={colors.textMuted} />
+        </TouchableOpacity>
+        {errors.event && <Text style={styles.error}>{errors.event}</Text>}
 
         {/* ─── Resident Dropdown Picker ─── */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Resident *</Text>
@@ -238,13 +200,16 @@ const CollectFaloScreen = ({ navigation, route }) => {
                   {selectedResident.name}
                   {selectedResident.houseOrFlatNo ? `  ·  Flat ${selectedResident.houseOrFlatNo}` : ''}
                 </Text>
-                <Text style={[styles.dropdownSubText, { color: colors.primary }]}>📱 {selectedResident.phone}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                  <Icon name="phone-outline" size={12} color={colors.primary} style={{ marginRight: 3 }} />
+                  <Text style={[styles.dropdownSubText, { color: colors.primary, marginTop: 0 }]}>{selectedResident.phone}</Text>
+                </View>
               </>
             ) : (
               <Text style={[styles.dropdownPlaceholderText, { color: colors.textMuted }]}>Search & Select Resident ({residents.length} available)</Text>
             )}
           </View>
-          <Text style={[styles.dropdownChevron, { color: colors.textMuted }]}>▼</Text>
+          <Icon name="chevron-down" size={18} color={colors.textMuted} />
         </TouchableOpacity>
         {errors.resident && <Text style={styles.error}>{errors.resident}</Text>}
 
@@ -260,14 +225,17 @@ const CollectFaloScreen = ({ navigation, route }) => {
                 {selectedResident.houseOrFlatNo ? `Flat ${selectedResident.houseOrFlatNo}  •  ` : ''}
                 {selectedResident.phone}
               </Text>
-              {contributionType === 'Event' && selectedEvent?.excludedResidents?.some((x) => (x._id || x) === selectedResident._id) && (
-                <Text style={{ fontSize: 11, fontWeight: '800', color: colors.danger, marginTop: 2 }}>
-                  🚫 EXCLUDED from {selectedEvent.title}
-                </Text>
+              {selectedEvent?.excludedResidents?.some((x) => (x._id || x) === selectedResident._id) && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                  <Icon name="account-cancel-outline" size={13} color={colors.danger} style={{ marginRight: 3 }} />
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: colors.danger }}>
+                    EXCLUDED from {selectedEvent.title}
+                  </Text>
+                </View>
               )}
             </View>
             <TouchableOpacity onPress={() => setSelectedResident(null)}>
-              <Text style={{ fontSize: 16, color: colors.textMuted, padding: 4 }}>✕</Text>
+              <Icon name="close" size={18} color={colors.textMuted} style={{ padding: 4 }} />
             </TouchableOpacity>
           </View>
         )}
@@ -331,7 +299,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
         />
 
         <Button
-          title="Record Payment ✅"
+          title="Record Payment"
           onPress={handleSubmit}
           loading={submitting}
           style={{ marginTop: SPACING.md }}
@@ -349,14 +317,14 @@ const CollectFaloScreen = ({ navigation, route }) => {
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Select Event</Text>
               <TouchableOpacity onPress={() => setEventModalVisible(false)}>
-                <Text style={[styles.modalCloseBtn, { color: colors.textMuted }]}>✕</Text>
+                <Icon name="close" size={22} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             {events.length > 5 && (
               <TextInput
                 style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                placeholder="🔍 Search event..."
+                placeholder="Search event..."
                 placeholderTextColor={colors.textMuted}
                 value={eventSearchQuery}
                 onChangeText={setEventSearchQuery}
@@ -395,7 +363,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
                     {item.perHouseAmount > 0 && (
                       <Text style={[styles.amountBadge, { color: colors.primary, backgroundColor: colors.primary + '18' }]}>₹{item.perHouseAmount}</Text>
                     )}
-                    {isSelected && <Text style={[styles.checkMark, { color: colors.primary }]}>✓</Text>}
+                    {isSelected && <Icon name="check" size={18} color={colors.primary} />}
                   </TouchableOpacity>
                 );
               }}
@@ -420,13 +388,13 @@ const CollectFaloScreen = ({ navigation, route }) => {
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Select Resident</Text>
               <TouchableOpacity onPress={() => setResidentModalVisible(false)}>
-                <Text style={[styles.modalCloseBtn, { color: colors.textMuted }]}>✕</Text>
+                <Icon name="close" size={22} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             <TextInput
               style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-              placeholder="🔍 Search name, flat no, or phone..."
+              placeholder="Search name, flat no, or phone..."
               placeholderTextColor={colors.textMuted}
               value={residentSearchQuery}
               onChangeText={setResidentSearchQuery}
@@ -443,7 +411,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
               keyboardShouldPersistTaps="handled"
               renderItem={({ item }) => {
                 const isSelected = selectedResident?._id === item._id;
-                const isExcluded = contributionType === 'Event' && selectedEvent?.excludedResidents?.some((x) => (x._id || x) === item._id);
+                const isExcluded = selectedEvent?.excludedResidents?.some((x) => (x._id || x) === item._id);
                 return (
                   <TouchableOpacity
                     style={[
@@ -455,7 +423,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
                     onPress={() => {
                       if (isExcluded) {
                         showError(
-                          'Resident Excluded 🚫',
+                          'Resident Excluded',
                           `${item.name} is excluded from "${selectedEvent.title}" and cannot pay for this event.`
                         );
                         return;
@@ -465,9 +433,13 @@ const CollectFaloScreen = ({ navigation, route }) => {
                       setResidentModalVisible(false);
                     }}>
                     <View style={[styles.itemAvatar, { backgroundColor: isExcluded ? '#EF444422' : colors.border }]}>
-                      <Text style={[styles.itemAvatarText, { color: isExcluded ? colors.danger : colors.textMuted }]}>
-                        {isExcluded ? '🚫' : (item.name?.[0]?.toUpperCase() || 'R')}
-                      </Text>
+                      {isExcluded ? (
+                        <Icon name="account-cancel" size={18} color={colors.danger} />
+                      ) : (
+                        <Text style={[styles.itemAvatarText, { color: colors.textMuted }]}>
+                          {item.name?.[0]?.toUpperCase() || 'R'}
+                        </Text>
+                      )}
                     </View>
 
                     <View style={{ flex: 1 }}>
@@ -486,10 +458,13 @@ const CollectFaloScreen = ({ navigation, route }) => {
                           </View>
                         )}
                       </View>
-                      <Text style={[styles.listItemSub, { color: colors.textMuted }]}>📱 {item.phone}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+                        <Icon name="phone-outline" size={12} color={colors.textMuted} style={{ marginRight: 3 }} />
+                        <Text style={[styles.listItemSub, { color: colors.textMuted, marginTop: 0 }]}>{item.phone}</Text>
+                      </View>
                     </View>
 
-                    {isSelected && <Text style={[styles.checkMark, { color: colors.primary }]}>✓</Text>}
+                    {isSelected && <Icon name="check" size={18} color={colors.primary} />}
                   </TouchableOpacity>
                 );
               }}
@@ -502,6 +477,17 @@ const CollectFaloScreen = ({ navigation, route }) => {
           </SafeAreaView>
         </View>
       </Modal>
+
+      {/* ─── PDF Receipt Viewer Modal ─── */}
+      <PdfReceiptModal
+        visible={showReceiptModal}
+        item={selectedReceipt}
+        onClose={() => {
+          setShowReceiptModal(false);
+          setSelectedReceipt(null);
+          navigation.goBack();
+        }}
+      />
 
     </KeyboardAvoidingView>
   );

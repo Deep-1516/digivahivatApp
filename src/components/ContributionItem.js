@@ -7,6 +7,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { SPACING } from '../constants';
 import { useTheme } from '../context/ThemeContext';
+import Icon from './Icon';
 
 const ContributionItem = ({ item, onPressReceipt }) => {
   const { colors } = useTheme();
@@ -23,8 +24,8 @@ const ContributionItem = ({ item, onPressReceipt }) => {
   });
 
   const eventName = contributionType === 'Annual'
-    ? `📅 Annual Fund ${annualYear ?? ''}`
-    : `🎉 ${eventId?.title ?? 'Society Event'}`;
+    ? `Society Maintenance ${annualYear ?? ''}`
+    : `${eventId?.title ?? 'Society Event'}`;
 
   return (
     <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
@@ -51,7 +52,8 @@ const ContributionItem = ({ item, onPressReceipt }) => {
           </View>
           {onPressReceipt ? (
             <TouchableOpacity style={[styles.receiptBtn, { backgroundColor: colors.primary + '15' }]} onPress={() => onPressReceipt(item)}>
-              <Text style={[styles.receiptBtnText, { color: colors.primary }]}>PDF</Text>
+              <Icon name="file-pdf-box" size={16} color={colors.primary} style={{ marginRight: 3 }} />
+              <Text style={[styles.receiptBtnText, { color: colors.primary }]}>PDF Receipt</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -62,28 +64,34 @@ const ContributionItem = ({ item, onPressReceipt }) => {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius:    12,
+    borderRadius:    16,
     padding:         SPACING.md,
     marginBottom:    SPACING.sm,
     borderWidth:     1,
-    elevation:       1,
+    elevation:       2,
+    shadowColor:     '#4F46E5',
+    shadowOffset:    { width: 0, height: 3 },
+    shadowOpacity:   0.05,
+    shadowRadius:    8,
   },
-  row:    { flexDirection: 'row', justifyContent: 'space-between' },
+  row:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   info:   { flex: 1, marginRight: SPACING.sm },
-  eventPill: { fontSize: 11, fontWeight: '700', marginBottom: 3 },
-  name:   { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  eventPill: { fontSize: 11, fontWeight: '800', marginBottom: 4, letterSpacing: 0.2 },
+  name:   { fontSize: 15, fontWeight: '800', marginBottom: 2 },
   sub:    { fontSize: 12 },
-  date:   { fontSize: 11, marginTop: 2 },
-  txn:    { fontSize: 11, marginTop: 2 },
-  right:  { alignItems: 'flex-end', justifyContent: 'space-between' },
-  amount: { fontSize: 17, fontWeight: '800' },
-  badge:  { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3, marginTop: 4 },
-  badgeText: { fontSize: 11, fontWeight: '600' },
+  date:   { fontSize: 11, marginTop: 3 },
+  txn:    { fontSize: 10, marginTop: 3, fontWeight: '600' },
+  right:  { alignItems: 'flex-end', justifyContent: 'center' },
+  amount: { fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
+  badge:  { borderRadius: 12, paddingHorizontal: 10, paddingVertical: 4, marginTop: 5 },
+  badgeText: { fontSize: 11, fontWeight: '700' },
   receiptBtn: {
-    marginTop:         6,
+    marginTop:         7,
     paddingHorizontal: 10,
-    paddingVertical:   4,
-    borderRadius:      6,
+    paddingVertical:   5,
+    borderRadius:      10,
+    flexDirection:     'row',
+    alignItems:        'center',
   },
   receiptBtnText: { fontSize: 11, fontWeight: '700' },
 });

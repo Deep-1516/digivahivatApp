@@ -10,34 +10,35 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING } from '../constants';
+import Icon from './Icon';
 
 const TYPE_CONFIG = {
   success: {
-    icon: '🎉',
+    icon: 'check-circle-outline',
     badgeBg: 'rgba(16, 185, 129, 0.18)',
     iconBg: '#10B981',
     defaultTitle: 'Success',
   },
   error: {
-    icon: '❌',
+    icon: 'close-circle-outline',
     badgeBg: 'rgba(239, 68, 68, 0.18)',
     iconBg: '#EF4444',
     defaultTitle: 'Error',
   },
   warning: {
-    icon: '⚠️',
+    icon: 'alert-circle-outline',
     badgeBg: 'rgba(245, 158, 11, 0.18)',
     iconBg: '#F59E0B',
     defaultTitle: 'Warning',
   },
   confirm: {
-    icon: '❓',
-    badgeBg: 'rgba(255, 87, 34, 0.18)',
-    iconBg: '#FF5722',
+    icon: 'help-circle-outline',
+    badgeBg: 'rgba(79, 70, 229, 0.18)',
+    iconBg: '#4F46E5',
     defaultTitle: 'Confirmation',
   },
   info: {
-    icon: '💡',
+    icon: 'information-outline',
     badgeBg: 'rgba(59, 130, 246, 0.18)',
     iconBg: '#3B82F6',
     defaultTitle: 'Notice',
@@ -68,7 +69,7 @@ const CustomAlertModal = ({
           {/* Header Icon Badge */}
           <View style={[styles.iconContainer, { backgroundColor: config.badgeBg }]}>
             <View style={[styles.iconCircle, { backgroundColor: config.iconBg }]}>
-              <Text style={styles.iconText}>{config.icon}</Text>
+              <Icon name={config.icon} size={26} color="#FFFFFF" />
             </View>
           </View>
 

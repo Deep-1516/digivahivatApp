@@ -63,7 +63,7 @@ const LoginScreen = ({ navigation }) => {
 
         {/* Form Card */}
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.cardTitle, { color: colors.text }]}>Welcome Back 👋</Text>
+          <Text style={[styles.cardTitle, { color: colors.text }]}>Welcome Back</Text>
           <Text style={[styles.cardSub, { color: colors.textMuted }]}>Sign in to manage contributions & expenses</Text>
 
           <Input
@@ -85,7 +85,7 @@ const LoginScreen = ({ navigation }) => {
             error={errors.password}
           />
 
-          <Button title="Sign In 🚀" onPress={handleLogin} loading={loading} style={styles.btn} />
+          <Button title="Sign In" onPress={handleLogin} loading={loading} style={styles.btn} />
 
           <Text style={[styles.infoNote, { color: colors.textMuted }]}>
             Accounts are managed by society admins. Contact your Admin if you need login access.
@@ -113,13 +113,17 @@ const styles = StyleSheet.create({
   },
   subtitle:  { fontSize: 13, marginTop: 2, textAlign: 'center', fontWeight: '500' },
   card: {
-    borderRadius:    24,
+    borderRadius:    22,
     padding:         SPACING.lg,
     borderWidth:     1,
     elevation:       4,
+    shadowColor:     '#4F46E5',
+    shadowOffset:    { width: 0, height: 8 },
+    shadowOpacity:   0.08,
+    shadowRadius:    16,
   },
-  cardTitle: { fontSize: 22, fontWeight: '800' },
-  cardSub:   { fontSize: 13, marginTop: 2, marginBottom: SPACING.lg },
+  cardTitle: { fontSize: 22, fontWeight: '800', letterSpacing: -0.3 },
+  cardSub:   { fontSize: 13, marginTop: 4, marginBottom: SPACING.lg },
   btn:       { marginTop: SPACING.sm },
   infoNote:  { fontSize: 12, marginTop: SPACING.lg, textAlign: 'center', lineHeight: 18 },
 });

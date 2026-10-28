@@ -8,6 +8,7 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, StyleSheet, TouchableOpacity } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { SPACING } from '../constants';
+import Icon from './Icon';
 
 const Input = ({
   label,
@@ -58,7 +59,11 @@ const Input = ({
             style={styles.eyeButton}
             onPress={() => setShowPassword(!showPassword)}
             activeOpacity={0.7}>
-            <Text style={styles.eyeIcon}>{showPassword ? '👁️' : '🙈'}</Text>
+            <Icon
+              name={showPassword ? 'eye-outline' : 'eye-off-outline'}
+              size={22}
+              color={colors.textMuted}
+            />
           </TouchableOpacity>
         )}
       </View>
@@ -74,6 +79,7 @@ const styles = StyleSheet.create({
     fontSize:     13,
     fontWeight:   '700',
     marginBottom: SPACING.xs,
+    letterSpacing: 0.2,
   },
   inputWrapper: {
     position:     'relative',
@@ -81,11 +87,11 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth:       1.2,
-    borderRadius:      12,
+    borderRadius:      14,
     paddingHorizontal: SPACING.md,
-    paddingVertical:   12,
+    paddingVertical:   13,
     fontSize:          15,
-    minHeight:         48,
+    minHeight:         50,
   },
   passwordInputPadding: {
     paddingRight: 48,
@@ -105,7 +111,7 @@ const styles = StyleSheet.create({
     minHeight:         90,
     textAlignVertical: 'top',
   },
-  error: { fontSize: 12, marginTop: 4, fontWeight: '500' },
+  error: { fontSize: 12, marginTop: 4, fontWeight: '600' },
 });
 
 export default Input;

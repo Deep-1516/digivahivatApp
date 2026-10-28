@@ -16,7 +16,8 @@ import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
 import Input  from '../../components/Input';
 import Button from '../../components/Button';
-import { COLORS, SPACING, EXPENSE_CATEGORIES } from '../../constants';
+import { COLORS, SPACING, EXPENSE_CATEGORIES, getEventStatus } from '../../constants';
+import Icon   from '../../components/Icon';
 
 const LogExpenseScreen = ({ navigation, route }) => {
   const editingExpense = route.params?.expense ?? null;
@@ -46,7 +47,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
     (async () => {
       try {
         const [eRes, rRes] = await Promise.all([eventsAPI.getAll(), residentsAPI.getAll()]);
-        const activeEvents = (eRes.data.data || []).filter((e) => e.isActive);
+        const activeEvents = (eRes.data.data || []).filter((e) => getEventStatus(e) === 'active');
         const list = activeEvents.length > 0 ? activeEvents : (eRes.data.data || []);
         setEvents(list);
         setResidents(rRes.data.data.residents || []);
@@ -83,7 +84,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
       if (res.assets && res.assets.length > 0) {
         const pickedAsset = res.assets[0];
         if (pickedAsset.fileSize && pickedAsset.fileSize > MAX_FILE_SIZE) {
-          showError('File Too Large ⚠️', 'Receipt image size exceeds the 5 MB limit. Please select a smaller photo.');
+          showError('File Too Large', 'Receipt image size exceeds the 5 MB limit. Please select a smaller photo.');
           return;
         }
         setReceiptImage(pickedAsset);
@@ -125,10 +126,10 @@ const LogExpenseScreen = ({ navigation, route }) => {
 
       if (editingExpense) {
         await expensesAPI.update(editingExpense._id, formData);
-        showSuccess('Updated ✅', 'Expense updated and submitted for approval.', () => navigation.goBack());
+        showSuccess('Updated', 'Expense updated and submitted for approval.', () => navigation.goBack());
       } else {
         await expensesAPI.log(formData);
-        showSuccess('Success ✅', 'Expense logged successfully.', () => navigation.goBack());
+        showSuccess('Success', 'Expense logged successfully.', () => navigation.goBack());
       }
     } catch (err) {
       showError('Error', err.message);
@@ -174,7 +175,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
               {selectedEvent ? selectedEvent.title : 'Select Event'}
             </Text>
           </View>
-          <Text style={[styles.dropdownChevron, { color: colors.textMuted }]}>▼</Text>
+          <Icon name="chevron-down" size={18} color={colors.textMuted} />
         </TouchableOpacity>
         {errors.event && <Text style={styles.error}>{errors.event}</Text>}
 
@@ -191,13 +192,16 @@ const LogExpenseScreen = ({ navigation, route }) => {
                   {selectedResident.name}
                   {selectedResident.houseOrFlatNo ? `  ·  Flat ${selectedResident.houseOrFlatNo}` : ''}
                 </Text>
-                <Text style={[styles.dropdownSubText, { color: colors.primary }]}>📱 {selectedResident.phone}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                  <Icon name="phone-outline" size={13} color={colors.primary} />
+                  <Text style={[styles.dropdownSubText, { color: colors.primary, marginTop: 0 }]}>{selectedResident.phone}</Text>
+                </View>
               </>
             ) : (
               <Text style={[styles.dropdownPlaceholderText, { color: colors.textMuted }]}>Select Resident (Default: Admin / Self)</Text>
             )}
           </View>
-          <Text style={[styles.dropdownChevron, { color: colors.textMuted }]}>▼</Text>
+          <Icon name="chevron-down" size={18} color={colors.textMuted} />
         </TouchableOpacity>
 
         {/* Selected Resident Summary Card */}
@@ -214,7 +218,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
               </Text>
             </View>
             <TouchableOpacity onPress={() => setSelectedResident(null)}>
-              <Text style={{ fontSize: 16, color: colors.textMuted, padding: 4 }}>✕</Text>
+              <Icon name="close" size={18} color={colors.textMuted} style={{ padding: 4 }} />
             </TouchableOpacity>
           </View>
         )}
@@ -266,7 +270,10 @@ const LogExpenseScreen = ({ navigation, route }) => {
           {receiptImage ? (
             <Image source={{ uri: receiptImage.uri }} style={styles.previewImage} />
           ) : (
-            <Text style={[styles.imagePickerText, { color: colors.primary }]}>📷 Upload Receipt Image</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Icon name="camera-outline" size={18} color={colors.primary} />
+              <Text style={[styles.imagePickerText, { color: colors.primary }]}>Upload Receipt Image</Text>
+            </View>
           )}
         </TouchableOpacity>
 
@@ -280,7 +287,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
         />
 
         <Button
-          title={editingExpense ? "Update Expense 🧾" : "Save Expense 🧾"}
+          title={editingExpense ? "Update Expense" : "Save Expense"}
           onPress={handleSubmit}
           loading={submitting}
           style={{ marginTop: SPACING.md }}
@@ -298,14 +305,14 @@ const LogExpenseScreen = ({ navigation, route }) => {
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Select Event</Text>
               <TouchableOpacity onPress={() => setEventModalVisible(false)}>
-                <Text style={[styles.modalCloseBtn, { color: colors.textMuted }]}>✕</Text>
+                <Icon name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             {events.length > 5 && (
               <TextInput
                 style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                placeholder="🔍 Search event..."
+                placeholder="Search event..."
                 placeholderTextColor={colors.textMuted}
                 value={eventSearchQuery}
                 onChangeText={setEventSearchQuery}
@@ -331,7 +338,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
                         {item.title}
                       </Text>
                     </View>
-                    {isSelected && <Text style={[styles.checkMark, { color: colors.primary }]}>✓</Text>}
+                    {isSelected && <Icon name="check" size={18} color={colors.primary} />}
                   </TouchableOpacity>
                 );
               }}
@@ -356,13 +363,13 @@ const LogExpenseScreen = ({ navigation, route }) => {
             <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Select Resident</Text>
               <TouchableOpacity onPress={() => setResidentModalVisible(false)}>
-                <Text style={[styles.modalCloseBtn, { color: colors.textMuted }]}>✕</Text>
+                <Icon name="close" size={20} color={colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             <TextInput
               style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-              placeholder="🔍 Search name, flat no, or phone..."
+              placeholder="Search name, flat no, or phone..."
               placeholderTextColor={colors.textMuted}
               value={residentSearchQuery}
               onChangeText={setResidentSearchQuery}
@@ -401,10 +408,13 @@ const LogExpenseScreen = ({ navigation, route }) => {
                           </View>
                         ) : null}
                       </View>
-                      <Text style={[styles.listItemSub, { color: colors.textMuted }]}>📱 {item.phone}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                        <Icon name="phone-outline" size={12} color={colors.textMuted} />
+                        <Text style={[styles.listItemSub, { color: colors.textMuted, marginTop: 0 }]}>{item.phone}</Text>
+                      </View>
                     </View>
 
-                    {isSelected && <Text style={[styles.checkMark, { color: colors.primary }]}>✓</Text>}
+                    {isSelected && <Icon name="check" size={18} color={colors.primary} />}
                   </TouchableOpacity>
                 );
               }}
