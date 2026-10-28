@@ -18,6 +18,7 @@ import { useAuth }  from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
 import { sosAPI }   from '../../services/api';
+import { onSosAlertReceived, notifySosListeners } from '../../services/notification.service';
 import Icon         from '../../components/Icon';
 import SosTriggerModal from '../../components/SosTriggerModal';
 import { SOS_TYPES, EMERGENCY_CONTACTS, SPACING } from '../../constants';
@@ -62,9 +63,16 @@ const SosEmergencyScreen = ({ navigation }) => {
 
   useEffect(() => {
     fetchData();
-    // Poll every 10 seconds for active emergencies while on this screen
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
+    // Poll every 5 seconds for active emergencies while on this screen
+    const interval = setInterval(fetchData, 5000);
+    // Instant update when push notification arrives
+    const unsubscribeSos = onSosAlertReceived(() => {
+      fetchData();
+    });
+    return () => {
+      clearInterval(interval);
+      unsubscribeSos();
+    };
   }, [fetchData]);
 
   const onRefresh = () => {
@@ -78,9 +86,23 @@ const SosEmergencyScreen = ({ navigation }) => {
     Linking.openURL(url).catch(() => Alert.alert('Error', 'Unable to make call.'));
   };
 
+  const [testingPush, setTestingPush] = useState(false);
+  const handleTestPush = async () => {
+    setTestingPush(true);
+    try {
+      const res = await sosAPI.testNotification();
+      showSuccess('Push Sent', res.data?.message || 'Check your phone notifications.');
+    } catch (err) {
+      showError('Test Failed', err.response?.data?.message || err.message);
+    } finally {
+      setTestingPush(false);
+    }
+  };
+
   const handleAcknowledge = async (alertItem) => {
     try {
       await sosAPI.acknowledge(alertItem._id);
+      notifySosListeners({ alertId: alertItem._id, action: 'acknowledge' });
       showSuccess('Help Dispatched', 'Marked as responding. Resident informed.');
       fetchData();
     } catch (err) {
@@ -98,6 +120,7 @@ const SosEmergencyScreen = ({ navigation }) => {
     setResolving(true);
     try {
       await sosAPI.resolve(resolvingAlert._id, { notes: resolveNotes });
+      notifySosListeners({ alertId: resolvingAlert._id, action: 'resolve' });
       setResolvingAlert(null);
       showSuccess('Incident Resolved', 'Emergency marked as resolved and safely closed.');
       fetchData();
@@ -120,6 +143,7 @@ const SosEmergencyScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               await sosAPI.cancel(alertItem._id, { reason: 'Cancelled by resident / safe now' });
+              notifySosListeners({ alertId: alertItem._id, action: 'cancel' });
               showSuccess('Alert Cancelled', 'The emergency alert has been deactivated.');
               fetchData();
             } catch (err) {
@@ -134,6 +158,7 @@ const SosEmergencyScreen = ({ navigation }) => {
   const handleTriggerSuccess = async (data) => {
     try {
       await sosAPI.trigger(data);
+      notifySosListeners(data);
       showSuccess('SOS Sent', 'Security and society admins have been alerted immediately.');
       fetchData();
     } catch (err) {
@@ -289,13 +314,23 @@ const SosEmergencyScreen = ({ navigation }) => {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.raiseSosBtn}
-          onPress={() => setShowTriggerModal(true)}
-          activeOpacity={0.85}>
-          <Icon name="alarm-light" size={15} color="#FFFFFF" style={{ marginRight: 4 }} />
-          <Text style={styles.raiseSosBtnText}>Raise SOS</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity
+            style={[styles.testPushBtn, { borderColor: colors.border }]}
+            onPress={handleTestPush}
+            disabled={testingPush}
+            activeOpacity={0.8}>
+            <Icon name="bell-ring-outline" size={16} color={colors.primary} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.raiseSosBtn}
+            onPress={() => setShowTriggerModal(true)}
+            activeOpacity={0.85}>
+            <Icon name="alarm-light" size={15} color="#FFFFFF" style={{ marginRight: 4 }} />
+            <Text style={styles.raiseSosBtnText}>Raise SOS</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* ── Segmented Tab Bar ── */}
@@ -756,6 +791,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 10,
+  },
+  testPushBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

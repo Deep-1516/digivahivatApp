@@ -9,7 +9,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, ScrollView,
   TouchableOpacity, Image, Share, ActivityIndicator,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -19,7 +19,7 @@ import { visitorsAPI } from '../services/api';
 import Input from './Input';
 import Button from './Button';
 import Icon from './Icon';
-import { COLORS, SPACING } from '../constants';
+import { COLORS, SPACING, API_BASE_URL } from '../constants';
 
 const VISITOR_TYPES = [
   { key: 'Guest',    label: 'Guest',    icon: 'account-heart-outline' },
@@ -95,22 +95,61 @@ const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
     }
   };
 
+  const getPassShareMessage = () => {
+    if (!createdPass) return '';
+    const societyTitle = user?.societyId?.name || 'Society';
+    const flat = createdPass.flatNo ? `Flat ${createdPass.flatNo}` : 'Resident Flat';
+    const members = createdPass.numberOfMembers || 1;
+    const passId = createdPass._id || createdPass.qrToken;
+    const passWebUrl = `${API_BASE_URL}/visitors/pass/${passId}`;
+
+    return (
+      `*DIGITAL GATE PASS — ${societyTitle.toUpperCase()}*\n\n` +
+      `Hello ${createdPass.visitorName},\n` +
+      `Your pre-approved gate pass for visiting *${flat}* (Host: ${user?.name || 'Resident'}) is ready.\n\n` +
+      `🔑 *Gate Passcode / OTP:* *${createdPass.passcode}*\n` +
+      `👥 *Guests Allowed:* ${members} Person${members > 1 ? 's' : ''}\n` +
+      `⏰ *Valid Until:* ${new Date(createdPass.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, 11:59 PM\n\n` +
+      `📲 *TAP TO SCAN QR CODE AT GATE:*\n${passWebUrl}\n\n` +
+      `_Please show the QR code link above or 6-digit passcode to the security guard at the gate for fast entry._`
+    );
+  };
+
+  const handleShareWhatsApp = async () => {
+    if (!createdPass) return;
+    try {
+      const message = getPassShareMessage();
+      const targetPhone = createdPass.visitorPhone ? createdPass.visitorPhone.replace(/\D/g, '') : '';
+      const phoneParam = targetPhone ? (targetPhone.length === 10 ? `91${targetPhone}` : targetPhone) : '';
+
+      const waUrl = phoneParam
+        ? `whatsapp://send?phone=${phoneParam}&text=${encodeURIComponent(message)}`
+        : `whatsapp://send?text=${encodeURIComponent(message)}`;
+
+      try {
+        await Linking.openURL(waUrl);
+      } catch (_) {
+        const webWaUrl = phoneParam
+          ? `https://wa.me/${phoneParam}?text=${encodeURIComponent(message)}`
+          : `https://wa.me/?text=${encodeURIComponent(message)}`;
+        try {
+          await Linking.openURL(webWaUrl);
+        } catch (_) {
+          await Share.share({
+            title: `Gate Pass for ${createdPass.visitorName}`,
+            message,
+          });
+        }
+      }
+    } catch (err) {
+      showError('Error', err.message || 'Could not open WhatsApp.');
+    }
+  };
+
   const handleSharePass = async () => {
     if (!createdPass) return;
     try {
-      const societyTitle = user?.societyId?.name || 'Society';
-      const flat = createdPass.flatNo ? `Flat ${createdPass.flatNo}` : 'Resident Flat';
-      const members = createdPass.numberOfMembers || 1;
-
-      const message =
-        `*DIGITAL GATE PASS — ${societyTitle.toUpperCase()}*\n\n` +
-        `Hello ${createdPass.visitorName},\n` +
-        `Your pre-approved gate pass for visiting *${flat}* (${user?.name || 'Host'}) has been generated.\n\n` +
-        `*Passcode / OTP:* ${createdPass.passcode}\n` +
-        `*Guests Allowed:* ${members} Person${members > 1 ? 's' : ''}\n` +
-        `*Valid Until:* ${new Date(createdPass.validUntil).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}, 11:59 PM\n\n` +
-        `_Show the QR code or tell the 6-digit passcode to the security guard at the gate for fast entry._`;
-
+      const message = getPassShareMessage();
       await Share.share({
         title: `Gate Pass for ${createdPass.visitorName}`,
         message,
@@ -214,11 +253,19 @@ const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
 
                 {/* Actions */}
                 <TouchableOpacity
-                  style={[styles.shareBtn, { backgroundColor: '#16A34A' }]}
+                  style={[styles.shareBtn, { backgroundColor: '#25D366' }]}
+                  onPress={handleShareWhatsApp}
+                  activeOpacity={0.85}>
+                  <Icon name="whatsapp" size={20} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.shareBtnText}>Share on WhatsApp</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.shareBtn, { backgroundColor: colors.primary, marginTop: 8 }]}
                   onPress={handleSharePass}
-                  activeOpacity={0.8}>
-                  <Icon name="share-variant-outline" size={18} color="#FFFFFF" />
-                  <Text style={styles.shareBtnText}>Share Gate Pass to Guest</Text>
+                  activeOpacity={0.85}>
+                  <Icon name="share-variant-outline" size={18} color="#FFFFFF" style={{ marginRight: 6 }} />
+                  <Text style={styles.shareBtnText}>Share Other (SMS / Apps)</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity

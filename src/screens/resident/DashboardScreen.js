@@ -18,6 +18,7 @@ import { useAuth }        from '../../context/AuthContext';
 import { useAlert }       from '../../context/AlertContext';
 import { useTheme }       from '../../context/ThemeContext';
 import { eventsAPI, residentsAPI, sosAPI } from '../../services/api';
+import { onSosAlertReceived, notifySosListeners } from '../../services/notification.service';
 import EventDetailsModal from '../../components/EventDetailsModal';
 import StatCard    from '../../components/StatCard';
 import ProgressBar from '../../components/ProgressBar';
@@ -74,12 +75,37 @@ const DashboardScreen = ({ navigation }) => {
       if (!user || err?.isSilent || err?.isAuthError) return;
       showError('Error', err.message);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   }, [user, showError]);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  // Lightweight active SOS fetcher (polled every 5s & fired immediately on FCM push)
+  const fetchActiveSos = useCallback(async () => {
+    if (!user) return;
+    try {
+      const sosRes = await sosAPI.getActive();
+      setActiveSos(sosRes.data?.data || []);
+    } catch (_) {}
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+
+      // Lightweight polling heartbeat every 5s while Dashboard is on screen
+      const heartbeat = setInterval(fetchActiveSos, 5000);
+
+      // Instant push notification listener for foreground broadcasts
+      const unsubscribeSos = onSosAlertReceived(() => {
+        fetchActiveSos();
+      });
+
+      return () => {
+        clearInterval(heartbeat);
+        unsubscribeSos();
+      };
+    }, [fetchData, fetchActiveSos])
+  );
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
@@ -210,9 +236,9 @@ const DashboardScreen = ({ navigation }) => {
             style={[styles.serviceCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
             activeOpacity={0.8}
             onPress={() => navigation.navigate('Helpdesk')}>
-            <Icon name="lifebuoy" size={26} color={colors.secondary} style={{ marginBottom: 6 }} />
-            <Text style={[styles.serviceCardTitle, { color: colors.text }]}>Private Helpdesk</Text>
-            <Text style={[styles.serviceCardSub, { color: colors.textMuted }]}>Submit request / complaint</Text>
+            <Icon name="message-alert-outline" size={26} color={colors.secondary} style={{ marginBottom: 6 }} />
+            <Text style={[styles.serviceCardTitle, { color: colors.text }]}>Complain</Text>
+            <Text style={[styles.serviceCardSub, { color: colors.textMuted }]}>Submit complaint or request</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -267,7 +293,8 @@ const DashboardScreen = ({ navigation }) => {
         onClose={() => setShowSosModal(false)}
         onTriggerSuccess={async (data) => {
           await sosAPI.trigger(data);
-          fetchData();
+          notifySosListeners(data);
+          fetchActiveSos();
           navigation.navigate('SosEmergency');
         }}
         userFlat={user?.houseOrFlatNo}

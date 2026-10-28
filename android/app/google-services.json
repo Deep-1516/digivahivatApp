@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "364622196590",
+    "project_id": "societyapp-15b9f",
+    "storage_bucket": "societyapp-15b9f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:364622196590:android:0fdc404c2df4864ae01b7f",
+        "android_client_info": {
+          "package_name": "com.falomobileapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCFafGdvrIsM6o8zgAKvgq0BDINaVZ4ujc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

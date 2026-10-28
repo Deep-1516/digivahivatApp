@@ -38,7 +38,7 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
   });
   const catColor = CATEGORY_COLOR[category] || colors.textMuted;
   const stStyle = STATUS_STYLES[status] || STATUS_STYLES.Pending;
-  const eventTitle = eventId?.title ?? 'Society Event';
+  const eventTitle = eventId?.title || 'General Society Expense';
 
   const isOwner = recordedBy?._id === currentUserId || recordedBy === currentUserId;
   const canEdit = (isAdmin || isOwner) && status !== 'Approved';

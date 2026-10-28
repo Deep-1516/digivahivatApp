@@ -97,11 +97,13 @@ export const societiesAPI = {
 // RESIDENTS
 // ════════════════════════════════════════════════════════════════════════════
 export const residentsAPI = {
-  getAll:     ()       => api.get('/residents'),
-  getMe:      ()       => api.get('/residents/me'),
-  add:        (data)   => api.post('/residents', data),
-  update:     (id, d)  => api.patch(`/residents/${id}`, d),
-  remove:     (id)     => api.delete(`/residents/${id}`),
+  getAll:         ()          => api.get('/residents'),
+  getMe:          ()          => api.get('/residents/me'),
+  add:            (data)      => api.post('/residents', data),
+  update:         (id, d)     => api.patch(`/residents/${id}`, d),
+  remove:         (id)        => api.delete(`/residents/${id}`),
+  saveFcmToken:   (fcmToken)  => api.post('/residents/fcm-token', { fcmToken }),
+  removeFcmToken: (fcmToken)  => api.delete('/residents/fcm-token', { data: { fcmToken } }),
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -201,12 +203,13 @@ export const visitorsAPI = {
 // EMERGENCY SOS
 // ════════════════════════════════════════════════════════════════════════════
 export const sosAPI = {
-  trigger:     (data)        => api.post('/sos', data),
-  getActive:   ()            => api.get('/sos/active'),
-  getHistory:  ()            => api.get('/sos/history'),
-  acknowledge: (id)          => api.put(`/sos/${id}/acknowledge`),
-  resolve:     (id, payload) => api.put(`/sos/${id}/resolve`, payload),
-  cancel:      (id, payload) => api.put(`/sos/${id}/cancel`, payload),
+  trigger:          (data)        => api.post('/sos', data),
+  getActive:        ()            => api.get('/sos/active'),
+  getHistory:       ()            => api.get('/sos/history'),
+  acknowledge:      (id)          => api.put(`/sos/${id}/acknowledge`),
+  resolve:          (id, payload) => api.put(`/sos/${id}/resolve`, payload),
+  cancel:           (id, payload) => api.put(`/sos/${id}/cancel`, payload),
+  testNotification: ()            => api.post('/sos/test-notification'),
 };
 
 

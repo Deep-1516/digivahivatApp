@@ -109,15 +109,19 @@ const PdfReceiptModal = ({ visible, item, onClose }) => {
     try {
       setDownloading(true);
       const downloadUrl = await contributionsAPI.getReceiptDownloadUrl(item._id, false);
-      const supported = await Linking.canOpenURL(downloadUrl);
-      if (supported) {
+      try {
         await Linking.openURL(downloadUrl);
         showSuccess(
           'Downloading Receipt',
-          'PDF receipt is downloading to your device storage (Downloads folder).'
+          'PDF receipt download initiated in your browser / downloads.'
         );
-      } else {
-        showError('Download Failed', 'Could not open browser to download receipt.');
+      } catch (openErr) {
+        // Fallback: If browser cannot open directly, open standard Share dialog
+        await Share.share({
+          title: `Payment Receipt ${receiptNo}`,
+          message: `Official Payment Receipt ${receiptNo}\nDownload PDF: ${downloadUrl}`,
+          url: downloadUrl,
+        });
       }
     } catch (err) {
       showError('Download Failed', err.message || 'Could not download receipt.');
@@ -129,11 +133,14 @@ const PdfReceiptModal = ({ visible, item, onClose }) => {
   const handleOpenViewer = async () => {
     try {
       const viewUrl = await contributionsAPI.getReceiptDownloadUrl(item._id, true);
-      const supported = await Linking.canOpenURL(viewUrl);
-      if (supported) {
+      try {
         await Linking.openURL(viewUrl);
-      } else {
-        showError('Error', 'Unable to open PDF viewer.');
+      } catch (openErr) {
+        await Share.share({
+          title: `View Receipt ${receiptNo}`,
+          message: `View Payment Receipt: ${viewUrl}`,
+          url: viewUrl,
+        });
       }
     } catch (err) {
       showError('Error', err.message || 'Could not open receipt.');

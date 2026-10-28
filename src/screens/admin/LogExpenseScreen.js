@@ -14,6 +14,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { eventsAPI, expensesAPI, residentsAPI } from '../../services/api';
 import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
+import { useAuth }  from '../../context/AuthContext';
 import Input  from '../../components/Input';
 import Button from '../../components/Button';
 import { COLORS, SPACING, EXPENSE_CATEGORIES, getEventStatus } from '../../constants';
@@ -23,6 +24,9 @@ const LogExpenseScreen = ({ navigation, route }) => {
   const editingExpense = route.params?.expense ?? null;
   const { showError, showSuccess } = useAlert();
   const { colors } = useTheme();
+  const { user, isAdmin, isSuperAdmin } = useAuth();
+  const isMember = !isAdmin && !isSuperAdmin;
+
   const [events,           setEvents]           = useState([]);
   const [residents,        setResidents]        = useState([]);
   const [selectedEvent,    setSelectedEvent]    = useState(null);
@@ -46,24 +50,47 @@ const LogExpenseScreen = ({ navigation, route }) => {
   useEffect(() => {
     (async () => {
       try {
-        const [eRes, rRes] = await Promise.all([eventsAPI.getAll(), residentsAPI.getAll()]);
-        const activeEvents = (eRes.data.data || []).filter((e) => getEventStatus(e) === 'active');
-        const list = activeEvents.length > 0 ? activeEvents : (eRes.data.data || []);
-        setEvents(list);
-        setResidents(rRes.data.data.residents || []);
+        const promises = [eventsAPI.getAll()];
+        // Residents list is only needed for Admin to attribute expenses
+        if (!isMember) {
+          promises.push(residentsAPI.getAll());
+        }
+        const [eRes, rRes] = await Promise.all(promises);
 
-        if (editingExpense?.eventId) {
-          const match = list.find((e) => e._id === (editingExpense.eventId._id || editingExpense.eventId));
-          setSelectedEvent(match || list[0]);
-        } else if (route.params?.event) {
-          const match = list.find((e) => e._id === route.params.event._id) || route.params.event;
-          setSelectedEvent(match);
-        } else if (list.length > 0) {
-          setSelectedEvent(list[0]);
+        // ONLY currently active events (endDate has not passed and isActive = true)
+        const activeEvents = (eRes.data.data || []).filter((e) => getEventStatus(e) === 'active');
+
+        // General Society Expense option for non-event expenses
+        const generalOption = {
+          _id: 'general',
+          title: 'General Society Expense (Non-Event)',
+          isGeneral: true,
+        };
+
+        const list = [generalOption, ...activeEvents];
+        setEvents(list);
+
+        if (rRes?.data?.data?.residents) {
+          setResidents(rRes.data.data.residents || []);
         }
 
-        if (editingExpense?.recordedBy) {
-          const matchRes = (rRes.data.data.residents || []).find((r) => r._id === (editingExpense.recordedBy._id || editingExpense.recordedBy));
+        if (editingExpense?.eventId) {
+          const match = activeEvents.find((e) => e._id === (editingExpense.eventId._id || editingExpense.eventId));
+          setSelectedEvent(match || generalOption);
+        } else if (editingExpense && !editingExpense.eventId) {
+          setSelectedEvent(generalOption);
+        } else if (route.params?.event) {
+          const match = activeEvents.find((e) => e._id === route.params.event._id) || generalOption;
+          setSelectedEvent(match);
+        } else {
+          // Default to first active event if available, otherwise General
+          setSelectedEvent(activeEvents.length > 0 ? activeEvents[0] : generalOption);
+        }
+
+        if (editingExpense?.recordedBy && !isMember) {
+          const matchRes = (rRes?.data?.data?.residents || []).find(
+            (r) => r._id === (editingExpense.recordedBy._id || editingExpense.recordedBy)
+          );
           if (matchRes) {
             setSelectedResident(matchRes);
           }
@@ -74,7 +101,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [isMember]);
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -94,7 +121,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
 
   const validate = () => {
     const e = {};
-    if (!selectedEvent) e.event  = 'Select an event.';
+    if (!selectedEvent) e.event  = 'Select an event or General Expense.';
     if (!title.trim())  e.title  = 'Title is required.';
     if (!amount || isNaN(Number(amount)) || Number(amount) <= 0) e.amount = 'Enter a valid amount.';
     setErrors(e);
@@ -106,13 +133,18 @@ const LogExpenseScreen = ({ navigation, route }) => {
     setSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('eventId',  selectedEvent._id);
+      if (selectedEvent && !selectedEvent.isGeneral && selectedEvent._id !== 'general') {
+        formData.append('eventId', selectedEvent._id);
+      }
       formData.append('title',    title.trim());
       formData.append('amount',   amount);
       formData.append('category', category);
       formData.append('notes',    notes.trim());
 
-      if (selectedResident) {
+      // If resident (member), always attribute the expense to themselves
+      if (isMember) {
+        formData.append('residentId', user?._id);
+      } else if (selectedResident) {
         formData.append('residentId', selectedResident._id);
       }
 
@@ -179,48 +211,68 @@ const LogExpenseScreen = ({ navigation, route }) => {
         </TouchableOpacity>
         {errors.event && <Text style={styles.error}>{errors.event}</Text>}
 
-        {/* ─── Paid / Incurred By (Optional Resident Selector) ─── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Paid / Incurred By (Optional)</Text>
-        <TouchableOpacity
-          style={[styles.dropdownSelector, { backgroundColor: colors.surface, borderColor: colors.border }]}
-          activeOpacity={0.7}
-          onPress={() => { setResidentSearchQuery(''); setResidentModalVisible(true); }}>
-          <View style={{ flex: 1 }}>
-            {selectedResident ? (
-              <>
-                <Text style={[styles.dropdownSelectedText, { color: colors.text }]}>
-                  {selectedResident.name}
-                  {selectedResident.houseOrFlatNo ? `  ·  Flat ${selectedResident.houseOrFlatNo}` : ''}
-                </Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                  <Icon name="phone-outline" size={13} color={colors.primary} />
-                  <Text style={[styles.dropdownSubText, { color: colors.primary, marginTop: 0 }]}>{selectedResident.phone}</Text>
-                </View>
-              </>
-            ) : (
-              <Text style={[styles.dropdownPlaceholderText, { color: colors.textMuted }]}>Select Resident (Default: Admin / Self)</Text>
-            )}
-          </View>
-          <Icon name="chevron-down" size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        {/* Selected Resident Summary Card */}
-        {selectedResident && (
-          <View style={[styles.selectedSummary, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '35' }]}>
-            <View style={[styles.summaryAvatar, { backgroundColor: colors.primary }]}>
-              <Text style={styles.summaryAvatarText}>{selectedResident.name?.[0]?.toUpperCase() || 'R'}</Text>
+        {/* ─── Paid / Incurred By: Resident Auto-Assignment or Admin Selector ─── */}
+        {isMember ? (
+          <View style={[styles.memberInfoPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <View style={[styles.memberAvatar, { backgroundColor: colors.primary }]}>
+              <Text style={styles.memberAvatarText}>{user?.name?.[0]?.toUpperCase() || 'M'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.selectedName, { color: colors.text }]}>{selectedResident.name}</Text>
-              <Text style={[styles.selectedDetails, { color: colors.textMuted }]}>
-                {selectedResident.houseOrFlatNo ? `Flat ${selectedResident.houseOrFlatNo}  •  ` : ''}
-                {selectedResident.phone}
+              <Text style={[styles.memberIncurredLabel, { color: colors.textMuted }]}>Expense Incurred By (Self)</Text>
+              <Text style={[styles.memberIncurredName, { color: colors.text }]}>
+                {user?.name || 'Resident Member'}
+                {user?.houseOrFlatNo ? `  ·  Flat ${user.houseOrFlatNo}` : ''}
               </Text>
             </View>
-            <TouchableOpacity onPress={() => setSelectedResident(null)}>
-              <Icon name="close" size={18} color={colors.textMuted} style={{ padding: 4 }} />
-            </TouchableOpacity>
+            <View style={styles.selfBadge}>
+              <Text style={styles.selfBadgeText}>Self</Text>
+            </View>
           </View>
+        ) : (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Paid / Incurred By (Optional)</Text>
+            <TouchableOpacity
+              style={[styles.dropdownSelector, { backgroundColor: colors.surface, borderColor: colors.border }]}
+              activeOpacity={0.7}
+              onPress={() => { setResidentSearchQuery(''); setResidentModalVisible(true); }}>
+              <View style={{ flex: 1 }}>
+                {selectedResident ? (
+                  <>
+                    <Text style={[styles.dropdownSelectedText, { color: colors.text }]}>
+                      {selectedResident.name}
+                      {selectedResident.houseOrFlatNo ? `  ·  Flat ${selectedResident.houseOrFlatNo}` : ''}
+                    </Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Icon name="phone-outline" size={13} color={colors.primary} />
+                      <Text style={[styles.dropdownSubText, { color: colors.primary, marginTop: 0 }]}>{selectedResident.phone}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={[styles.dropdownPlaceholderText, { color: colors.textMuted }]}>Select Resident (Default: Admin / Self)</Text>
+                )}
+              </View>
+              <Icon name="chevron-down" size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* Selected Resident Summary Card */}
+            {selectedResident && (
+              <View style={[styles.selectedSummary, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '35' }]}>
+                <View style={[styles.summaryAvatar, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.summaryAvatarText}>{selectedResident.name?.[0]?.toUpperCase() || 'R'}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[styles.selectedName, { color: colors.text }]}>{selectedResident.name}</Text>
+                  <Text style={[styles.selectedDetails, { color: colors.textMuted }]}>
+                    {selectedResident.houseOrFlatNo ? `Flat ${selectedResident.houseOrFlatNo}  •  ` : ''}
+                    {selectedResident.phone}
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => setSelectedResident(null)}>
+                  <Icon name="close" size={18} color={colors.textMuted} style={{ padding: 4 }} />
+                </TouchableOpacity>
+              </View>
+            )}
+          </>
         )}
 
         {/* ─── Expense Title & Amount ─── */}
@@ -333,9 +385,15 @@ const LogExpenseScreen = ({ navigation, route }) => {
                       setErrors((e) => ({ ...e, event: '' }));
                       setEventModalVisible(false);
                     }}>
+                    <View style={[styles.eventBadgeIcon, { backgroundColor: item.isGeneral ? colors.primary + '18' : '#10B98118' }]}>
+                      <Icon name={item.isGeneral ? 'office-building' : 'calendar-star'} size={18} color={item.isGeneral ? colors.primary : '#10B981'} />
+                    </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.listItemTitle, { color: colors.text }, isSelected && { color: colors.primary }]}>
+                      <Text style={[styles.listItemTitle, { color: colors.text }, isSelected && { color: colors.primary, fontWeight: '700' }]}>
                         {item.title}
+                      </Text>
+                      <Text style={[styles.listItemSub, { color: colors.textMuted }]}>
+                        {item.isGeneral ? 'Routine society maintenance, repairs & operations' : 'Active festival / society event'}
                       </Text>
                     </View>
                     {isSelected && <Icon name="check" size={18} color={colors.primary} />}
@@ -643,6 +701,56 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     color: COLORS.textMuted,
+  },
+  memberInfoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 6,
+    marginBottom: SPACING.sm,
+  },
+  memberAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberAvatarText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  memberIncurredLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  memberIncurredName: {
+    fontSize: 13.5,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  selfBadge: {
+    backgroundColor: '#10B98120',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  selfBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#10B981',
+  },
+  eventBadgeIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

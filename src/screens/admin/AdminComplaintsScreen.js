@@ -229,7 +229,7 @@ const AdminComplaintsScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: colors.text }]}>Society Helpdesk</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Member Complaints</Text>
             <Text style={[styles.sub, { color: colors.textMuted }]}>
               Member complaints & service requests
             </Text>

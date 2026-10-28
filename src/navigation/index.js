@@ -9,14 +9,15 @@
  * Uses the `loading` flag from AuthContext to show a splash
  * while AsyncStorage is being rehydrated.
  */
-import React from 'react';
+import React, { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { setupNotificationListeners } from '../services/notification.service';
 
 // ─── Auth Screens ─────────────────────────────────────────────────────────
 import LoginScreen    from '../screens/auth/LoginScreen';
@@ -176,8 +177,8 @@ const ResidentTabs = () => {
         name="Helpdesk"
         component={MemberComplaintsScreen}
         options={{
-          tabBarLabel: 'Helpdesk',
-          tabBarIcon: ({ focused }) => renderTabIcon('lifebuoy', focused, colors.primary),
+          tabBarLabel: 'Complain',
+          tabBarIcon: ({ focused }) => renderTabIcon('message-alert-outline', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -271,8 +272,8 @@ const AdminTabs = () => {
         name="Helpdesk"
         component={AdminComplaintsScreen}
         options={{
-          tabBarLabel: 'Helpdesk',
-          tabBarIcon: ({ focused }) => renderTabIcon('lifebuoy', focused, colors.primary),
+          tabBarLabel: 'Complain',
+          tabBarIcon: ({ focused }) => renderTabIcon('message-alert-outline', focused, colors.primary),
         }}
       />
       <Tab.Screen
@@ -323,6 +324,14 @@ const ResidentStack = () => {
 const RootNavigator = () => {
   const { user, loading, isAdmin, isSuperAdmin } = useAuth();
   const { colors } = useTheme();
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    const unsubscribe = setupNotificationListeners(navigationRef);
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [navigationRef]);
 
   if (loading) {
     return (
@@ -333,7 +342,7 @@ const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {!user
         ? <AuthStack />
         : isSuperAdmin

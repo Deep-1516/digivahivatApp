@@ -8,6 +8,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setLoggingOut } from '../services/api';
+import { registerDeviceToken, unregisterDeviceToken } from '../services/notification.service';
 
 const AuthContext = createContext(null);
 
@@ -27,6 +28,11 @@ export const AuthProvider = ({ children }) => {
           const { user: u, token: t } = JSON.parse(raw);
           setUser(u);
           setToken(t);
+          // Register push notification token in background
+          const fcmToken = await registerDeviceToken();
+          if (fcmToken) {
+            console.log('🔥 [FCM TOKEN ON APP START]:', fcmToken);
+          }
         }
       } catch (_) {
         // Storage read failure — proceed as logged-out
@@ -41,6 +47,12 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     setToken(authToken);
     await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify({ user: userData, token: authToken }));
+    const fcmToken = await registerDeviceToken();
+    console.log('\n═══════════════════════════════════════════════════════════════');
+    console.log(`👤 Logged in as: ${userData?.name || 'User'} (${userData?.phone || ''})`);
+    console.log('🔥 FCM Token after login:');
+    console.log(fcmToken || '(No token received - check permissions or Firebase link)');
+    console.log('═══════════════════════════════════════════════════════════════\n');
   };
 
   // ── Update local user (e.g., after profile edit) ──────────────────────────
@@ -52,6 +64,7 @@ export const AuthProvider = ({ children }) => {
   // ── Logout: clear everything ───────────────────────────────────────────────
   const logout = async () => {
     setLoggingOut(true);
+    await unregisterDeviceToken();
     setUser(null);
     setToken(null);
     try {

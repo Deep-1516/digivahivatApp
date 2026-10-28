@@ -91,12 +91,9 @@ const SosTriggerModal = ({ visible, onClose, onTriggerSuccess, userFlat }) => {
 
   const handleCall = (number) => {
     const url = `tel:${number}`;
-    Linking.canOpenURL(url)
-      .then((supported) => {
-        if (supported) Linking.openURL(url);
-        else Alert.alert('Error', `Cannot dial ${number} on this device.`);
-      })
-      .catch((err) => Alert.alert('Error', err.message));
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Error', `Cannot dial ${number} on this device.`);
+    });
   };
 
   return (

@@ -18,6 +18,7 @@ import { useAuth }        from '../../context/AuthContext';
 import { useAlert }       from '../../context/AlertContext';
 import { useTheme }       from '../../context/ThemeContext';
 import { eventsAPI, contributionsAPI, sosAPI } from '../../services/api';
+import { onSosAlertReceived, notifySosListeners } from '../../services/notification.service';
 import EventDetailsModal from '../../components/EventDetailsModal';
 import PdfReceiptModal   from '../../components/PdfReceiptModal';
 import ActiveSosBanner   from '../../components/ActiveSosBanner';
@@ -112,7 +113,33 @@ const AdminDashboardScreen = ({ navigation }) => {
     }
   }, [user, showError]);
 
-  useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+  // Lightweight active SOS fetcher (polled every 5s & fired immediately on FCM push)
+  const fetchActiveSos = useCallback(async () => {
+    if (!user) return;
+    try {
+      const sosRes = await sosAPI.getActive();
+      setActiveSos(sosRes.data?.data || []);
+    } catch (_) {}
+  }, [user]);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+
+      // Lightweight polling heartbeat every 5s while Admin Dashboard is on screen
+      const heartbeat = setInterval(fetchActiveSos, 5000);
+
+      // Instant push notification listener for foreground broadcasts
+      const unsubscribeSos = onSosAlertReceived(() => {
+        fetchActiveSos();
+      });
+
+      return () => {
+        clearInterval(heartbeat);
+        unsubscribeSos();
+      };
+    }, [fetchData, fetchActiveSos])
+  );
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
@@ -258,8 +285,8 @@ const AdminDashboardScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[styles.qBtn, { backgroundColor: colors.surface, borderColor: colors.border, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }]}
             onPress={() => navigation.navigate('Helpdesk')}>
-            <Icon name="lifebuoy" size={16} color={colors.secondary} style={{ marginRight: 6 }} />
-            <Text style={[styles.qBtnText, { color: colors.text }]}>Helpdesk</Text>
+            <Icon name="message-alert-outline" size={16} color={colors.secondary} style={{ marginRight: 6 }} />
+            <Text style={[styles.qBtnText, { color: colors.text }]}>Complain</Text>
           </TouchableOpacity>
         </View>
 

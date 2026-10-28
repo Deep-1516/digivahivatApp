@@ -243,7 +243,7 @@ const MemberComplaintsScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: colors.text }]}>Helpdesk & Requests</Text>
+            <Text style={[styles.title, { color: colors.text }]}>Complain & Requests</Text>
             <Text style={[styles.sub, { color: colors.textMuted }]}>
               Private complaints & service requests to Society Admins
             </Text>
