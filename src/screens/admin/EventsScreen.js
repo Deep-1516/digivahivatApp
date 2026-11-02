@@ -13,7 +13,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, Modal, ActivityIndicator, ScrollView, TextInput,
+  RefreshControl, Modal, ActivityIndicator, ScrollView, TextInput, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect }    from '@react-navigation/native';
@@ -209,6 +209,7 @@ const EventsScreen = () => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* ── Header ── */}
       <View style={[
         styles.headerRow,

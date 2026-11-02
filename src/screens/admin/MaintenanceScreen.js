@@ -12,7 +12,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   ActivityIndicator, RefreshControl, Modal, ScrollView,
-  KeyboardAvoidingView, Platform,
+  KeyboardAvoidingView, Platform, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth }  from '../../context/AuthContext';
@@ -64,11 +64,31 @@ const MaintenanceScreen = ({ navigation }) => {
   const [selectedReceipt, setSelectedReceipt] = useState(null);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
+  const isMyFlat = useCallback((residentObj) => {
+    if (!residentObj || !user) return false;
+    const rId = (residentObj._id || residentObj).toString();
+    const uId = (user._id || '').toString();
+    if (rId && uId && rId === uId) return true;
+    if (residentObj.phone && user.phone && residentObj.phone === user.phone) return true;
+    if (
+      residentObj.houseOrFlatNo &&
+      user.houseOrFlatNo &&
+      String(residentObj.houseOrFlatNo).trim().toLowerCase() === String(user.houseOrFlatNo).trim().toLowerCase()
+    ) {
+      return true;
+    }
+    return false;
+  }, [user]);
+
   const fetchData = useCallback(async () => {
     try {
       const [resRes, cRes] = await Promise.all([
         residentsAPI.getAll(),
-        contributionsAPI.getAll({ contributionType: 'Annual', annualYear: selectedYear }),
+        contributionsAPI.getAll({
+          contributionType: 'Annual',
+          annualYear: selectedYear,
+          ...(!isAdmin && user?._id ? { residentId: user._id } : {}),
+        }),
       ]);
       setResidents(resRes.data?.data?.residents || []);
       setContributions(cRes.data?.data || []);
@@ -80,7 +100,7 @@ const MaintenanceScreen = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [selectedYear, showError]);
+  }, [selectedYear, isAdmin, user?._id, showError]);
 
   useEffect(() => {
     setLoading(true);
@@ -101,7 +121,7 @@ const MaintenanceScreen = ({ navigation }) => {
       if (rId) contribMap[rId] = c;
     });
 
-    return residents.map((r) => {
+    const list = residents.map((r) => {
       const contrib = contribMap[r._id];
       const isPaid = !!contrib && (contrib.paymentStatus === 'Paid' || contrib.amount > 0);
       return {
@@ -113,7 +133,35 @@ const MaintenanceScreen = ({ navigation }) => {
         paidDate: contrib ? contrib.date : null,
       };
     });
-  }, [residents, contributions]);
+
+    // PRIVACY ENFORCEMENT:
+    // If the logged-in user is a regular member (not Admin/SuperAdmin):
+    // Strictly filter out all other residents' records. Return ONLY their own flat.
+    if (!isAdmin) {
+      const myItems = list.filter((item) => isMyFlat(item.resident));
+      if (myItems.length > 0) return myItems;
+
+      // Fallback: if user wasn't in residents array from API, build record from `user` state
+      if (user) {
+        const myContrib = contributions.find((c) => {
+          const rId = c.residentId?._id || c.residentId;
+          return isMyFlat({ _id: rId, houseOrFlatNo: c.residentId?.houseOrFlatNo });
+        });
+        const isPaid = !!myContrib && (myContrib.paymentStatus === 'Paid' || myContrib.amount > 0);
+        return [{
+          resident: user,
+          contribution: myContrib || null,
+          isPaid,
+          status: myContrib ? myContrib.paymentStatus : 'Pending',
+          amount: myContrib ? myContrib.amount : 0,
+          paidDate: myContrib ? myContrib.date : null,
+        }];
+      }
+      return [];
+    }
+
+    return list;
+  }, [residents, contributions, isAdmin, isMyFlat, user]);
 
   // Aggregate Metrics
   const metrics = useMemo(() => {
@@ -140,6 +188,11 @@ const MaintenanceScreen = ({ navigation }) => {
 
   // Filtered List
   const filteredList = useMemo(() => {
+    if (!isAdmin) {
+      // Member view: no tabs, no search, only their own record
+      return flatMaintenanceData;
+    }
+
     return flatMaintenanceData.filter((item) => {
       // Tab filter
       if (activeTab === 'Paid' && !item.isPaid) return false;
@@ -155,10 +208,11 @@ const MaintenanceScreen = ({ navigation }) => {
       }
       return true;
     });
-  }, [flatMaintenanceData, activeTab, search]);
+  }, [flatMaintenanceData, isAdmin, activeTab, search]);
 
   // Open modal pre-filling specific resident
   const handleOpenCollectForResident = (resident) => {
+    if (!isAdmin) return;
     setSelectedResident(resident);
     setAmount('');
     setPaymentMode('Cash');
@@ -183,6 +237,7 @@ const MaintenanceScreen = ({ navigation }) => {
   };
 
   const handleRecordMaintenance = async () => {
+    if (!isAdmin) return;
     if (!validate()) return;
     setSubmitting(true);
     try {
@@ -246,7 +301,7 @@ const MaintenanceScreen = ({ navigation }) => {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
               <View style={[styles.flatBadge, { backgroundColor: colors.primaryLight }]}>
                 <Text style={[styles.flatBadgeText, { color: colors.primary }]}>
-                  Flat {resident.houseOrFlatNo || '—'}
+                  Flat {resident.houseOrFlatNo || user?.houseOrFlatNo || '—'}
                 </Text>
               </View>
               {isPaid ? (
@@ -262,15 +317,17 @@ const MaintenanceScreen = ({ navigation }) => {
               )}
             </View>
 
-            <Text style={[styles.residentName, { color: colors.text }]}>{resident.name}</Text>
-            <Text style={[styles.residentPhone, { color: colors.textMuted }]}>{resident.phone}</Text>
+            <Text style={[styles.residentName, { color: colors.text }]}>{resident.name || user?.name}</Text>
+            {isAdmin && resident.phone ? (
+              <Text style={[styles.residentPhone, { color: colors.textMuted }]}>{resident.phone}</Text>
+            ) : null}
           </View>
 
           <View style={styles.rightCol}>
             {isPaid ? (
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={[styles.amountText, { color: colors.success }]}>{fmt(paidAmt)}</Text>
-                <Text style={[styles.dateText, { color: colors.textMuted }]}>{dateStr}</Text>
+                {dateStr ? <Text style={[styles.dateText, { color: colors.textMuted }]}>{dateStr}</Text> : null}
               </View>
             ) : (
               <View style={{ alignItems: 'flex-end' }}>
@@ -300,9 +357,11 @@ const MaintenanceScreen = ({ navigation }) => {
               <Text style={styles.actionBtnPrimaryText}>Collect Maintenance</Text>
             </TouchableOpacity>
           ) : (
-            <View style={{ paddingVertical: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center' }}>
-              <Icon name="clock-outline" size={14} color={colors.danger} style={{ marginRight: 4 }} />
-              <Text style={{ fontSize: 12, fontWeight: '700', color: colors.danger }}>Pending Dues</Text>
+            <View style={{ paddingVertical: 6, paddingHorizontal: 6, flexDirection: 'row', alignItems: 'center' }}>
+              <Icon name="information-outline" size={14} color={colors.textMuted} style={{ marginRight: 5 }} />
+              <Text style={{ fontSize: 12, fontWeight: '600', color: colors.textMuted }}>
+                Please contact committee to pay maintenance for {selectedYear}
+              </Text>
             </View>
           )}
         </View>
@@ -312,6 +371,7 @@ const MaintenanceScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* ─── Top Header ─── */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -324,9 +384,15 @@ const MaintenanceScreen = ({ navigation }) => {
             </TouchableOpacity>
           )}
           <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: colors.text }]}>Society Maintenance</Text>
+            <Text style={[styles.title, { color: colors.text }]}>
+              {isAdmin ? 'Society Maintenance' : 'My Maintenance'}
+            </Text>
             <Text style={[styles.sub, { color: colors.textMuted }]}>
-              Annual society fund & maintenance register
+              {isAdmin
+                ? 'Annual society fund & maintenance register'
+                : user?.houseOrFlatNo
+                  ? `Annual maintenance record for Flat ${user.houseOrFlatNo}`
+                  : 'Annual maintenance record'}
             </Text>
           </View>
         </View>
@@ -373,52 +439,58 @@ const MaintenanceScreen = ({ navigation }) => {
         })}
       </View>
 
-      {/* ─── Metrics Summary Cards ─── */}
-      <View style={styles.metricsContainer}>
-        <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>COLLECTED</Text>
-          <Text style={[styles.metricVal, { color: colors.success }]}>{fmt(metrics.totalCollected)}</Text>
+      {/* ─── Metrics Summary Cards (Admins only - to prevent member embarrassment) ─── */}
+      {isAdmin && (
+        <View style={styles.metricsContainer}>
+          <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>COLLECTED</Text>
+            <Text style={[styles.metricVal, { color: colors.success }]}>{fmt(metrics.totalCollected)}</Text>
+          </View>
+          <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>PAID FLATS</Text>
+            <Text style={[styles.metricVal, { color: colors.primary }]}>{metrics.paidCount} / {metrics.totalFlats}</Text>
+          </View>
+          <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.metricLabel, { color: colors.textMuted }]}>PENDING</Text>
+            <Text style={[styles.metricVal, { color: colors.danger }]}>{metrics.pendingCount} Flats</Text>
+          </View>
         </View>
-        <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>PAID FLATS</Text>
-          <Text style={[styles.metricVal, { color: colors.primary }]}>{metrics.paidCount} / {metrics.totalFlats}</Text>
-        </View>
-        <View style={[styles.metricCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Text style={[styles.metricLabel, { color: colors.textMuted }]}>PENDING</Text>
-          <Text style={[styles.metricVal, { color: colors.danger }]}>{metrics.pendingCount} Flats</Text>
-        </View>
-      </View>
+      )}
 
-      {/* ─── Search Bar ─── */}
-      <View style={{ paddingHorizontal: SPACING.md, marginTop: 4 }}>
-        <Input
-          placeholder="Search by flat, name, or phone..."
-          value={search}
-          onChangeText={setSearch}
-          containerStyle={{ marginBottom: 6 }}
-        />
-      </View>
+      {/* ─── Search Bar (Admins only) ─── */}
+      {isAdmin && (
+        <View style={{ paddingHorizontal: SPACING.md, marginTop: 4 }}>
+          <Input
+            placeholder="Search by flat, name, or phone..."
+            value={search}
+            onChangeText={setSearch}
+            containerStyle={{ marginBottom: 6 }}
+          />
+        </View>
+      )}
 
-      {/* ─── Filter Tabs ─── */}
-      <View style={[styles.tabsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
-        {[
-          { key: 'All',     label: `All Flats (${flatMaintenanceData.length})` },
-          { key: 'Paid',    label: `Paid (${metrics.paidCount})` },
-          { key: 'Pending', label: `Pending (${metrics.pendingCount})` },
-        ].map((t) => {
-          const isActive = activeTab === t.key;
-          return (
-            <TouchableOpacity
-              key={t.key}
-              style={[styles.tabItem, isActive && { borderBottomColor: colors.primary }]}
-              onPress={() => setActiveTab(t.key)}>
-              <Text style={[styles.tabLabel, { color: colors.textMuted }, isActive && { color: colors.primary, fontWeight: '800' }]}>
-                {t.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {/* ─── Filter Tabs (Admins only) ─── */}
+      {isAdmin && (
+        <View style={[styles.tabsRow, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
+          {[
+            { key: 'All',     label: `All Flats (${flatMaintenanceData.length})` },
+            { key: 'Paid',    label: `Paid (${metrics.paidCount})` },
+            { key: 'Pending', label: `Pending (${metrics.pendingCount})` },
+          ].map((t) => {
+            const isActive = activeTab === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                style={[styles.tabItem, isActive && { borderBottomColor: colors.primary }]}
+                onPress={() => setActiveTab(t.key)}>
+                <Text style={[styles.tabLabel, { color: colors.textMuted }, isActive && { color: colors.primary, fontWeight: '800' }]}>
+                  {t.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       {/* ─── Register List ─── */}
       {loading ? (
@@ -428,7 +500,7 @@ const MaintenanceScreen = ({ navigation }) => {
       ) : (
         <FlatList
           data={filteredList}
-          keyExtractor={(item) => item.resident._id}
+          keyExtractor={(item) => String(item.resident?._id || item.resident?.houseOrFlatNo || item.contribution?._id || 'my-flat')}
           renderItem={renderFlatCard}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
           contentContainerStyle={styles.list}
@@ -437,9 +509,11 @@ const MaintenanceScreen = ({ navigation }) => {
               <Icon name="cash-check" size={44} color={colors.textMuted} style={{ marginBottom: 8 }} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>No records found</Text>
               <Text style={[styles.emptySub, { color: colors.textMuted }]}>
-                {activeTab === 'Pending'
-                  ? 'Great! All society flats have paid maintenance for this year.'
-                  : 'No residents matching your query.'}
+                {!isAdmin
+                  ? `No maintenance record found for Flat ${user?.houseOrFlatNo || 'your flat'} for year ${selectedYear}.`
+                  : activeTab === 'Pending'
+                    ? 'Great! All society flats have paid maintenance for this year.'
+                    : 'No residents matching your query.'}
               </Text>
             </View>
           }

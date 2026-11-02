@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  Modal, ScrollView, ActivityIndicator, RefreshControl,
+  Modal, ScrollView, ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -346,6 +346,7 @@ const SocietiesScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* ── Header ──────────────────────────────────────────────────────────── */}
       <View style={[
         styles.header,

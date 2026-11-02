@@ -11,13 +11,11 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import RootNavigator from './src/navigation';
 
 function AppContent(): React.JSX.Element {
-  const isDark = useColorScheme() === 'dark';
-
   return (
     <SafeAreaProvider>
       <StatusBar
-        barStyle={isDark ? 'light-content' : 'dark-content'}
-        backgroundColor={isDark ? '#0F172A' : '#F8FAFC'}
+        barStyle="light-content"
+        backgroundColor="#121212"
       />
       <AuthProvider>
         <AlertProvider>

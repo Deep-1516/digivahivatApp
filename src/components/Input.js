@@ -12,9 +12,14 @@ import Icon from './Icon';
 
 const Input = ({
   label,
+  labelStyle,
+  inputStyle,
   error,
   containerStyle,
   secureTextEntry,
+  placeholderTextColor,
+  focusedBorderColor,
+  eyeColor,
   ...props
 }) => {
   const { colors } = useTheme();
@@ -23,25 +28,30 @@ const Input = ({
 
   const isPasswordInput = secureTextEntry !== undefined;
 
+  const activeBorderColor = isFocused
+    ? (focusedBorderColor || colors.primary)
+    : colors.border;
+
   return (
     <View style={[styles.container, containerStyle]}>
-      {label ? <Text style={[styles.label, { color: colors.text }]}>{label}</Text> : null}
+      {label ? <Text style={[styles.label, { color: colors.text }, labelStyle]}>{label}</Text> : null}
 
       <View style={styles.inputWrapper}>
         <TextInput
           style={[
             styles.input,
             {
-              borderColor:     isFocused ? colors.primary : colors.border,
+              borderColor:     activeBorderColor,
               backgroundColor: colors.surface,
               color:           colors.text,
             },
+            inputStyle,
+            isFocused && focusedBorderColor && { borderColor: focusedBorderColor },
             error && { borderColor: colors.danger },
             props.multiline && styles.multiline,
             isPasswordInput && styles.passwordInputPadding,
           ]}
-          placeholderTextColor={colors.textMuted}
-          selectTextOnFocus
+          placeholderTextColor={placeholderTextColor || colors.textMuted}
           onFocus={(e) => {
             setIsFocused(true);
             if (props.onFocus) props.onFocus(e);
@@ -62,7 +72,7 @@ const Input = ({
             <Icon
               name={showPassword ? 'eye-outline' : 'eye-off-outline'}
               size={22}
-              color={colors.textMuted}
+              color={eyeColor || colors.textMuted}
             />
           </TouchableOpacity>
         )}

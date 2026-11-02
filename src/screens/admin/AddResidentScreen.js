@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
-  Platform, TouchableOpacity,
+  Platform, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { residentsAPI }   from '../../services/api';
 import { useAlert }       from '../../context/AlertContext';
@@ -62,6 +62,7 @@ const AddResidentScreen = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         <Input
@@ -110,7 +111,7 @@ const AddResidentScreen = ({ navigation }) => {
         {/* Role toggle */}
         <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Role</Text>
         <View style={styles.roleRow}>
-          {['Resident', 'Admin'].map((r) => (
+          {['Resident', 'Admin', 'Guard'].map((r) => (
             <TouchableOpacity
               key={r}
               style={[styles.roleBtn, { borderColor: colors.border, backgroundColor: colors.surface }, role === r && { backgroundColor: colors.primary, borderColor: colors.primary }]}
@@ -121,7 +122,7 @@ const AddResidentScreen = ({ navigation }) => {
         </View>
 
         <Button
-          title="Create Resident Account"
+          title={role === 'Guard' ? 'Create Guard Account' : role === 'Admin' ? 'Create Admin Account' : 'Create Resident Account'}
           onPress={handleSubmit}
           loading={submitting}
           style={{ marginTop: SPACING.md }}

@@ -5,22 +5,18 @@
  * using React Native's useColorScheme().
  */
 import React, { createContext, useContext } from 'react';
-import { useColorScheme } from 'react-native';
-import { LIGHT_COLORS, DARK_COLORS } from '../constants';
+import { THEME_COLORS, FONTS } from '../constants';
 
 const ThemeContext = createContext({
   isDark: false,
-  colors: LIGHT_COLORS,
+  colors: THEME_COLORS,
+  fonts: FONTS,
   theme: 'light',
 });
 
 export const ThemeProvider = ({ children }) => {
-  const systemScheme = useColorScheme();
-  const isDark = systemScheme === 'dark';
-  const colors = isDark ? DARK_COLORS : LIGHT_COLORS;
-
   return (
-    <ThemeContext.Provider value={{ isDark, colors, theme: systemScheme || 'light' }}>
+    <ThemeContext.Provider value={{ isDark: false, colors: THEME_COLORS, fonts: FONTS, theme: 'light' }}>
       {children}
     </ThemeContext.Provider>
   );

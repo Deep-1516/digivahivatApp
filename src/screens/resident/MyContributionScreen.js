@@ -9,7 +9,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  RefreshControl, ActivityIndicator, TouchableOpacity,
+  RefreshControl, ActivityIndicator, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -72,6 +72,7 @@ const MyContributionScreen = () => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* ── Header ── */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -133,7 +134,7 @@ const MyContributionScreen = () => {
           data={items}
           keyExtractor={(it) => it._id}
           renderItem={({ item }) => (
-            <ContributionItem item={item} onPressReceipt={handlePdfReceipt} />
+            <ContributionItem item={item} onPressReceipt={handlePdfReceipt} isLight />
           )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
           ListEmptyComponent={

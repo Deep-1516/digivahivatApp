@@ -11,7 +11,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Modal, ScrollView,
-  TextInput,
+  TextInput, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
@@ -231,6 +231,7 @@ const MemberComplaintsScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Top Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, paddingRight: 8 }}>

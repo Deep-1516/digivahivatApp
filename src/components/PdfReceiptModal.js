@@ -10,7 +10,10 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, Modal, ScrollView,
   TouchableOpacity, ActivityIndicator, Linking, Share, Platform,
+  NativeModules,
 } from 'react-native';
+
+const { NotificationSound } = NativeModules;
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
@@ -75,7 +78,7 @@ const PdfReceiptModal = ({ visible, item, onClose }) => {
   const societyName = (
     item.societyName ||
     user?.societyId?.name ||
-    'FALO RESIDENTIAL COMMUNITY'
+    'SKY SOCIETY RESIDENTIAL COMMUNITY'
   ).toUpperCase();
 
   const receiptShort = (item._id || '').slice(-8).toUpperCase();
@@ -109,19 +112,36 @@ const PdfReceiptModal = ({ visible, item, onClose }) => {
     try {
       setDownloading(true);
       const downloadUrl = await contributionsAPI.getReceiptDownloadUrl(item._id, false);
-      try {
-        await Linking.openURL(downloadUrl);
-        showSuccess(
-          'Downloading Receipt',
-          'PDF receipt download initiated in your browser / downloads.'
+      const safeReceiptNo = receiptNo.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const fileName = `Sky_Society_Receipt_${safeReceiptNo}.pdf`;
+
+      if (Platform.OS === 'android' && NotificationSound?.downloadFile) {
+        // Native background download directly via Android DownloadManager
+        // Saves to phone's standard Downloads folder WITHOUT opening Chrome/browser!
+        await NotificationSound.downloadFile(
+          downloadUrl,
+          fileName,
+          `Official Payment Receipt ${receiptNo}`,
+          'application/pdf'
         );
-      } catch (openErr) {
-        // Fallback: If browser cannot open directly, open standard Share dialog
-        await Share.share({
-          title: `Payment Receipt ${receiptNo}`,
-          message: `Official Payment Receipt ${receiptNo}\nDownload PDF: ${downloadUrl}`,
-          url: downloadUrl,
-        });
+        showSuccess(
+          'Receipt Saved',
+          `PDF receipt "${fileName}" downloaded directly into your phone's Downloads folder.`
+        );
+      } else {
+        try {
+          await Linking.openURL(downloadUrl);
+          showSuccess(
+            'Downloading Receipt',
+            'PDF receipt download initiated.'
+          );
+        } catch (openErr) {
+          await Share.share({
+            title: `Payment Receipt ${receiptNo}`,
+            message: `Official Payment Receipt ${receiptNo}\nDownload PDF: ${downloadUrl}`,
+            url: downloadUrl,
+          });
+        }
       }
     } catch (err) {
       showError('Download Failed', err.message || 'Could not download receipt.');
@@ -288,7 +308,7 @@ const PdfReceiptModal = ({ visible, item, onClose }) => {
 
                 {/* Disclaimer */}
                 <Text style={styles.disclaimerText}>
-                  This is a computer-generated official receipt issued by DigiVahivat and requires no physical signature.
+                  This is a computer-generated official receipt issued by Sky Society and requires no physical signature.
                 </Text>
 
               </View>
@@ -397,7 +417,7 @@ const styles = StyleSheet.create({
     borderColor: '#E2E8F0',
   },
   paperHeader: {
-    backgroundColor: '#0A192F',
+    backgroundColor: '#3E4095',
     margin: -SPACING.md,
     marginBottom: SPACING.md,
     paddingVertical: 18,

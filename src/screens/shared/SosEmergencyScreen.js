@@ -11,14 +11,20 @@ import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   RefreshControl, ActivityIndicator, Linking, Alert, Modal,
-  TextInput,
+  TextInput, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth }  from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
 import { useTheme } from '../../context/ThemeContext';
 import { sosAPI }   from '../../services/api';
-import { onSosAlertReceived, notifySosListeners } from '../../services/notification.service';
+import {
+  onSosAlertReceived,
+  notifySosListeners,
+  playEmergencySound,
+  stopEmergencySound,
+  registerDeviceToken,
+} from '../../services/notification.service';
 import Icon         from '../../components/Icon';
 import SosTriggerModal from '../../components/SosTriggerModal';
 import { SOS_TYPES, EMERGENCY_CONTACTS, SPACING } from '../../constants';
@@ -87,9 +93,33 @@ const SosEmergencyScreen = ({ navigation }) => {
   };
 
   const [testingPush, setTestingPush] = useState(false);
+  const [playingSiren, setPlayingSiren] = useState(false);
+
+  // Stop siren sound automatically on screen unmount
+  useEffect(() => {
+    return () => {
+      stopEmergencySound();
+    };
+  }, []);
+
+  const handleToggleSirenTest = () => {
+    if (playingSiren) {
+      stopEmergencySound();
+      setPlayingSiren(false);
+    } else {
+      playEmergencySound();
+      setPlayingSiren(true);
+      // Auto-stop preview after 4 seconds
+      setTimeout(() => {
+        setPlayingSiren(false);
+      }, 4000);
+    }
+  };
+
   const handleTestPush = async () => {
     setTestingPush(true);
     try {
+      await registerDeviceToken();
       const res = await sosAPI.testNotification();
       showSuccess('Push Sent', res.data?.message || 'Check your phone notifications.');
     } catch (err) {
@@ -297,6 +327,7 @@ const SosEmergencyScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* ── Header ── */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1 }}>
@@ -315,6 +346,25 @@ const SosEmergencyScreen = ({ navigation }) => {
         </View>
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          {/* Test Audible Siren Button */}
+          <TouchableOpacity
+            style={[
+              styles.testPushBtn,
+              {
+                borderColor: playingSiren ? '#DC2626' : colors.border,
+                backgroundColor: playingSiren ? 'rgba(220, 38, 38, 0.12)' : 'transparent',
+              },
+            ]}
+            onPress={handleToggleSirenTest}
+            activeOpacity={0.8}>
+            <Icon
+              name={playingSiren ? 'volume-high' : 'volume-source'}
+              size={16}
+              color={playingSiren ? '#DC2626' : colors.primary}
+            />
+          </TouchableOpacity>
+
+          {/* Test FCM Push Button */}
           <TouchableOpacity
             style={[styles.testPushBtn, { borderColor: colors.border }]}
             onPress={handleTestPush}

@@ -11,7 +11,8 @@
  */
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Text, View } from 'react-native';
-import { NavigationContainer, useNavigationContainerRef } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { NavigationContainer, useNavigationContainerRef, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 
@@ -61,25 +62,26 @@ const SuperAdminStack = () => (
 );
 
 const SuperAdminTabs = () => {
+  const insets = useSafeAreaInsets();
   const { colors } = useTheme();
 
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown:             false,
-        tabBarActiveTintColor:   colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor:   '#00AFEF',
+        tabBarInactiveTintColor: '#64748B',
         tabBarStyle: {
-          backgroundColor:       colors.surface,
-          borderTopColor:        colors.border,
+          backgroundColor:       '#FFFFFF',
+          borderTopColor:        '#E2E8F0',
           borderTopWidth:        1,
-          height:                66,
-          paddingBottom:         10,
-          paddingTop:            8,
+          height:                60 + (insets.bottom || 0),
+          paddingBottom:         Math.max(insets.bottom, 8),
+          paddingTop:            6,
           elevation:             8,
-          shadowColor:           '#4F46E5',
+          shadowColor:           '#3E4095',
           shadowOffset:          { width: 0, height: -4 },
-          shadowOpacity:         0.07,
+          shadowOpacity:         0.06,
           shadowRadius:          12,
         },
         tabBarLabelStyle:        { fontSize: 11, fontWeight: '700' },
@@ -134,25 +136,24 @@ const renderTabIcon = (iconName, focused, primaryColor, family = 'MaterialCommun
 
 // ─── Resident Bottom Tabs ─────────────────────────────────────────────────────
 const ResidentTabs = () => {
-  const { colors } = useTheme();
-
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown:             false,
-        tabBarActiveTintColor:   colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor:   '#00AFEF',
+        tabBarInactiveTintColor: '#64748B',
         tabBarStyle: {
-          backgroundColor:       colors.surface,
-          borderTopColor:        colors.border,
+          backgroundColor:       '#FFFFFF',
+          borderTopColor:        '#E2E8F0',
           borderTopWidth:        1,
-          height:                66,
-          paddingBottom:         10,
-          paddingTop:            8,
+          height:                60 + (insets.bottom || 0),
+          paddingBottom:         Math.max(insets.bottom, 8),
+          paddingTop:            6,
           elevation:             8,
-          shadowColor:           '#4F46E5',
+          shadowColor:           '#3E4095',
           shadowOffset:          { width: 0, height: -4 },
-          shadowOpacity:         0.07,
+          shadowOpacity:         0.06,
           shadowRadius:          12,
         },
         tabBarLabelStyle:        { fontSize: 11, fontWeight: '700' },
@@ -162,7 +163,7 @@ const ResidentTabs = () => {
         component={ResidentDashboardScreen}
         options={{
           tabBarLabel: 'Home',
-          tabBarIcon: ({ focused }) => renderTabIcon('home', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('home', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -170,7 +171,7 @@ const ResidentTabs = () => {
         component={NoticeBoardScreen}
         options={{
           tabBarLabel: 'Notices',
-          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -178,7 +179,7 @@ const ResidentTabs = () => {
         component={MemberComplaintsScreen}
         options={{
           tabBarLabel: 'Complain',
-          tabBarIcon: ({ focused }) => renderTabIcon('message-alert-outline', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('message-alert-outline', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -186,7 +187,7 @@ const ResidentTabs = () => {
         component={MyContributionScreen}
         options={{
           tabBarLabel: 'My Payment',
-          tabBarIcon: ({ focused }) => renderTabIcon('credit-card-outline', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('credit-card-outline', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -194,7 +195,7 @@ const ResidentTabs = () => {
         component={ExpensesFeedScreen}
         options={{
           tabBarLabel: 'Expenses',
-          tabBarIcon: ({ focused }) => renderTabIcon('receipt', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('receipt', focused, '#00AFEF'),
         }}
       />
     </Tab.Navigator>
@@ -229,25 +230,24 @@ const AdminStack = () => {
 };
 
 const AdminTabs = () => {
-  const { colors } = useTheme();
-
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown:             false,
-        tabBarActiveTintColor:   colors.primary,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor:   '#00AFEF',
+        tabBarInactiveTintColor: '#64748B',
         tabBarStyle: {
-          backgroundColor:       colors.surface,
-          borderTopColor:        colors.border,
+          backgroundColor:       '#FFFFFF',
+          borderTopColor:        '#E2E8F0',
           borderTopWidth:        1,
-          height:                66,
-          paddingBottom:         10,
-          paddingTop:            8,
+          height:                60 + (insets.bottom || 0),
+          paddingBottom:         Math.max(insets.bottom, 8),
+          paddingTop:            6,
           elevation:             8,
-          shadowColor:           '#4F46E5',
+          shadowColor:           '#3E4095',
           shadowOffset:          { width: 0, height: -4 },
-          shadowOpacity:         0.07,
+          shadowOpacity:         0.06,
           shadowRadius:          12,
         },
         tabBarLabelStyle:        { fontSize: 10.5, fontWeight: '700' },
@@ -257,7 +257,7 @@ const AdminTabs = () => {
         component={AdminDashboardScreen}
         options={{
           tabBarLabel: 'Dashboard',
-          tabBarIcon: ({ focused }) => renderTabIcon('view-dashboard', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('view-dashboard', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -265,7 +265,7 @@ const AdminTabs = () => {
         component={NoticeBoardScreen}
         options={{
           tabBarLabel: 'Notices',
-          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -273,7 +273,7 @@ const AdminTabs = () => {
         component={AdminComplaintsScreen}
         options={{
           tabBarLabel: 'Complain',
-          tabBarIcon: ({ focused }) => renderTabIcon('message-alert-outline', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('message-alert-outline', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -281,7 +281,7 @@ const AdminTabs = () => {
         component={ResidentsScreen}
         options={{
           tabBarLabel: 'Residents',
-          tabBarIcon: ({ focused }) => renderTabIcon('account-group', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('account-group', focused, '#00AFEF'),
         }}
       />
       <Tab.Screen
@@ -289,10 +289,81 @@ const AdminTabs = () => {
         component={ExpensesFeedScreen}
         options={{
           tabBarLabel: 'Expenses',
-          tabBarIcon: ({ focused }) => renderTabIcon('receipt', focused, colors.primary),
+          tabBarIcon: ({ focused }) => renderTabIcon('receipt', focused, '#00AFEF'),
         }}
       />
     </Tab.Navigator>
+  );
+};
+
+// ─── Guard Tabs & Stack (Security Guard Minimal Role) ────────────────────────
+const GuardTabs = () => {
+  const insets = useSafeAreaInsets();
+  return (
+    <Tab.Navigator
+      screenOptions={{
+        headerShown:             false,
+        tabBarActiveTintColor:   '#00AFEF',
+        tabBarInactiveTintColor: '#64748B',
+        tabBarStyle: {
+          backgroundColor:       '#FFFFFF',
+          borderTopColor:        '#E2E8F0',
+          borderTopWidth:        1,
+          height:                60 + (insets.bottom || 0),
+          paddingBottom:         Math.max(insets.bottom, 8),
+          paddingTop:            6,
+          elevation:             8,
+          shadowColor:           '#3E4095',
+          shadowOffset:          { width: 0, height: -4 },
+          shadowOpacity:         0.06,
+          shadowRadius:          12,
+        },
+        tabBarLabelStyle:        { fontSize: 11, fontWeight: '700' },
+      }}>
+      <Tab.Screen
+        name="GuardGate"
+        component={GateVisitorsScreen}
+        options={{
+          tabBarLabel: 'Gate VMS',
+          tabBarIcon: ({ focused }) => renderTabIcon('shield-account', focused, '#00AFEF'),
+        }}
+      />
+      <Tab.Screen
+        name="GuardSos"
+        component={SosEmergencyScreen}
+        options={{
+          tabBarLabel: 'SOS Monitor',
+          tabBarIcon: ({ focused }) => renderTabIcon('alert-octagon', focused, '#DC2626'),
+        }}
+      />
+      <Tab.Screen
+        name="GuardNotices"
+        component={NoticeBoardScreen}
+        options={{
+          tabBarLabel: 'Notices',
+          tabBarIcon: ({ focused }) => renderTabIcon('bullhorn', focused, '#00AFEF'),
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+const GuardStack = () => {
+  const { colors } = useTheme();
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerStyle:         { backgroundColor: colors.surface },
+        headerTintColor:     colors.text,
+        headerTitleStyle:    { fontWeight: '800', fontSize: 18 },
+        headerShadowVisible: false,
+      }}>
+      <Stack.Screen name="GuardTabs"    component={GuardTabs}          options={{ headerShown: false }} />
+      <Stack.Screen name="GateVisitors" component={GateVisitorsScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="SosEmergency" component={SosEmergencyScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="NoticeBoard"  component={NoticeBoardScreen}  options={{ headerShown: false }} />
+    </Stack.Navigator>
   );
 };
 
@@ -322,7 +393,7 @@ const ResidentStack = () => {
 
 // ─── Root Navigator ───────────────────────────────────────────────────────────
 const RootNavigator = () => {
-  const { user, loading, isAdmin, isSuperAdmin } = useAuth();
+  const { user, loading, isAdmin, isSuperAdmin, isGuard } = useAuth();
   const { colors } = useTheme();
   const navigationRef = useNavigationContainerRef();
 
@@ -341,15 +412,31 @@ const RootNavigator = () => {
     );
   }
 
+  const navTheme = {
+    ...DefaultTheme,
+    dark: false,
+    colors: {
+      ...DefaultTheme.colors,
+      primary: colors.primary,
+      background: colors.background,
+      card: colors.surface,
+      text: colors.text,
+      border: colors.border,
+      notification: colors.primary,
+    },
+  };
+
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} theme={navTheme}>
       {!user
         ? <AuthStack />
         : isSuperAdmin
           ? <SuperAdminStack />
-          : isAdmin
-            ? <AdminStack />
-            : <ResidentStack />
+          : isGuard
+            ? <GuardStack />
+            : isAdmin
+              ? <AdminStack />
+              : <ResidentStack />
       }
     </NavigationContainer>
   );

@@ -400,7 +400,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xl,
   },
   cancelCountdownBtn: {
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E1E1E',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',

@@ -10,7 +10,7 @@ import { API_BASE_URL } from '../constants';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 45000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -49,6 +49,19 @@ api.interceptors.response.use(
       silentErr.isSilent = true;
       silentErr.isAuthError = true;
       return Promise.reject(silentErr);
+    }
+
+    // Auto-retry once on cold-start network timeout for idempotent GET requests
+    const config = err.config;
+    if (
+      config &&
+      config.method?.toLowerCase() === 'get' &&
+      !config._retry &&
+      (err.code === 'ECONNABORTED' || err.message?.includes('Network Error') || !err.response)
+    ) {
+      config._retry = true;
+      config.timeout = 50000;
+      return new Promise((resolve) => setTimeout(resolve, 1500)).then(() => api(config));
     }
 
     const status = err.response?.status;

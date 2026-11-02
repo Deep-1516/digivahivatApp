@@ -7,7 +7,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
-  RefreshControl, ActivityIndicator,
+  RefreshControl, ActivityIndicator, StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -49,7 +49,16 @@ const MyVisitorsScreen = ({ navigation }) => {
     }
   }, [showError]);
 
-  useFocusEffect(useCallback(() => { fetchVisitors(); }, [fetchVisitors]));
+  useFocusEffect(
+    useCallback(() => {
+      fetchVisitors();
+      // Auto-refresh visitors every 5 seconds so resident sees gate check-in/out without manual pull-to-refresh
+      const pollTimer = setInterval(() => {
+        fetchVisitors();
+      }, 5000);
+      return () => clearInterval(pollTimer);
+    }, [fetchVisitors])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -57,10 +66,12 @@ const MyVisitorsScreen = ({ navigation }) => {
   };
 
   const handleCancelPass = (item) => {
-    showConfirm(
-      'Cancel Gate Pass',
-      `Cancel the pre-approved pass for ${item.visitorName}? The visitor will not be allowed gate entry.`,
-      async () => {
+    showConfirm({
+      title: 'Cancel Gate Pass',
+      message: `Cancel the pre-approved pass for ${item.visitorName}? The visitor will not be allowed gate entry.`,
+      confirmText: 'Cancel Pass',
+      cancelText: 'Keep Pass',
+      onConfirm: async () => {
         try {
           await visitorsAPI.cancel(item._id);
           showSuccess('Cancelled', 'Gate pass cancelled.');
@@ -68,8 +79,8 @@ const MyVisitorsScreen = ({ navigation }) => {
         } catch (err) {
           showError('Failed', err.message || 'Could not cancel pass.');
         }
-      }
-    );
+      },
+    });
   };
 
   const filteredVisitors = visitors.filter((v) => {
@@ -184,6 +195,7 @@ const MyVisitorsScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Top Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -256,6 +268,7 @@ const MyVisitorsScreen = ({ navigation }) => {
       {/* Create / View Gate Pass Modal */}
       <PreApproveVisitorModal
         visible={modalVisible || !!selectedPass}
+        initialPass={selectedPass}
         onClose={() => { setModalVisible(false); setSelectedPass(null); }}
         onSuccess={() => { fetchVisitors(); }}
       />

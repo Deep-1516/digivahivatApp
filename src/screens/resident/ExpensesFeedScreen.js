@@ -3,22 +3,38 @@
  *
  * Shared between Resident and Admin tab.
  * Shows all expenses for the active event, category-grouped with totals.
- * Tap "View Bill" on an expense card to see the receipt image in a modal.
+ * Styled with custom brand palette: Background #FFFFFF, Primary #00AFEF, Secondary #3E4095, Dark #1E1E1E.
  */
 import React, { useCallback, useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList, RefreshControl,
-  ActivityIndicator, TouchableOpacity,
+  ActivityIndicator, TouchableOpacity, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useFocusEffect }  from '@react-navigation/native';
 import { useAuth } from '../../context/AuthContext';
 import { useAlert } from '../../context/AlertContext';
-import { useTheme } from '../../context/ThemeContext';
 import { expensesAPI, eventsAPI } from '../../services/api';
 import ExpenseItem         from '../../components/ExpenseItem';
 import StatCard            from '../../components/StatCard';
-import { COLORS, SPACING }         from '../../constants';
+import { SPACING }         from '../../constants';
+import Icon                from '../../components/Icon';
+
+const THEME = {
+  background:    '#FFFFFF',
+  surface:       '#FFFFFF',
+  surfaceSubtle: '#F8FAFC',
+  primary:       '#00AFEF',  // Sky Blue
+  secondary:     '#3E4095',  // Society Deep Blue
+  dark:          '#1E1E1E',  // Dark Text / Charcoal
+  textMuted:     '#64748B',  // Slate Secondary Text
+  border:        '#E2E8F0',  // Crisp Subtle Border
+  borderSubtle:  '#F1F5F9',
+  cardShadow:    '#3E4095',
+  success:       '#10B981',
+  danger:        '#EF4444',
+  warning:       '#F59E0B',
+};
 
 const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
 
@@ -26,7 +42,6 @@ const ExpensesFeedScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { user, isAdmin } = useAuth();
   const { showError, showSuccess, showAlert } = useAlert();
-  const { colors }       = useTheme();
   const [expenses,    setExpenses]   = useState([]);
   const [breakdown,   setBreakdown]  = useState([]);
   const [loading,     setLoading]    = useState(true);
@@ -41,7 +56,7 @@ const ExpensesFeedScreen = ({ navigation }) => {
 
       // Fetch all expenses for the society so expenses for any event display in feed
       const res = await expensesAPI.getAll(ev ? { eventId: ev._id } : {});
-      setExpenses(res.data.data);
+      setExpenses(res.data.data || []);
       setBreakdown(res.data.categoryBreakdown ?? []);
     } catch (err) {
       showError('Error', err.message);
@@ -49,7 +64,7 @@ const ExpensesFeedScreen = ({ navigation }) => {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [showError]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
 
@@ -94,100 +109,254 @@ const ExpensesFeedScreen = ({ navigation }) => {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
+      <View style={[styles.center, { backgroundColor: THEME.background }]}>
+        <ActivityIndicator color={THEME.primary} size="large" />
       </View>
     );
   }
 
   return (
-    <FlatList
-      style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}
-      contentContainerStyle={styles.content}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[colors.primary]} />}
-      data={expenses}
-      keyExtractor={(it) => it._id}
-      renderItem={({ item }) => (
-        <ExpenseItem
-          item={item}
-          isAdmin={isAdmin}
-          currentUserId={user?._id}
-          onApprove={(it) => handleStatusUpdate(it, 'Approved')}
-          onReject={(it) => handleRejectPrompt(it)}
-          onEdit={(it) => navigation.navigate('LogExpense', { expense: it })}
-        />
-      )}
-      ListHeaderComponent={
-        <View>
-          {/* Header row with Add Expense button */}
-          <View style={styles.header}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-              <View>
-                <Text style={[styles.title, { color: colors.text }]}>Expenses Feed</Text>
-                {activeEvent && <Text style={[styles.sub, { color: colors.textMuted }]}>{activeEvent.title}</Text>}
-              </View>
-              <TouchableOpacity
-                style={[styles.addBtn, { backgroundColor: colors.primary }]}
-                onPress={() => navigation.navigate('LogExpense')}>
-                <Text style={styles.addBtnText}>+ Add Expense</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Summary row */}
-          <View style={styles.summaryRow}>
-            <StatCard label="Total Spent" value={fmt(totalSpend)} color={colors.danger} />
-            <StatCard label="Entries"     value={String(expenses.length)} color={colors.info} />
-          </View>
-
-          {/* Category breakdown chips */}
-          {breakdown.length > 0 && (
-            <View style={styles.breakdownWrap}>
-              {breakdown.map((b) => (
-                <View key={b._id} style={[styles.chip, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                  <Text style={[styles.chipLabel, { color: colors.textMuted }]}>{b._id}</Text>
-                  <Text style={[styles.chipAmt, { color: colors.danger }]}>{fmt(b.total)}</Text>
+    <View style={[styles.screen, { backgroundColor: THEME.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <FlatList
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[THEME.primary]} />}
+        data={expenses}
+        keyExtractor={(it) => it._id}
+        renderItem={({ item }) => (
+          <ExpenseItem
+            item={item}
+            isAdmin={isAdmin}
+            currentUserId={user?._id}
+            onApprove={(it) => handleStatusUpdate(it, 'Approved')}
+            onReject={(it) => handleRejectPrompt(it)}
+            onEdit={(it) => navigation.navigate('LogExpense', { expense: it })}
+            isLight
+          />
+        )}
+        ListHeaderComponent={
+          <View>
+            {/* Header row with Add Expense button */}
+            <View style={styles.header}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View style={{ flex: 1, paddingRight: 8 }}>
+                  <Text style={styles.title}>Society Expenses</Text>
+                  {activeEvent ? (
+                    <View style={styles.eventPill}>
+                      <Icon name="calendar-month-outline" size={13} color={THEME.secondary} style={{ marginRight: 4 }} />
+                      <Text style={styles.sub}>{activeEvent.title}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.subMuted}>All Society Records</Text>
+                  )}
                 </View>
-              ))}
+                <TouchableOpacity
+                  style={styles.addBtn}
+                  activeOpacity={0.8}
+                  onPress={() => navigation.navigate('LogExpense')}>
+                  <Icon name="plus" size={15} color="#FFF" style={{ marginRight: 4 }} />
+                  <Text style={styles.addBtnText}>Add Expense</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          )}
 
-          <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>All Expenses</Text>
-        </View>
-      }
-      ListEmptyComponent={
-        <View style={styles.empty}>
-          <Text style={[styles.emptyText, { color: colors.textMuted }]}>No expenses recorded yet.</Text>
-        </View>
-      }
-    />
+            {/* Summary row with StatCards */}
+            <View style={styles.summaryRow}>
+              <StatCard
+                label="Total Spent"
+                value={fmt(totalSpend)}
+                color={THEME.danger}
+                icon="arrow-top-right"
+                style={styles.statCardOverride}
+                isLight
+              />
+              <StatCard
+                label="Total Entries"
+                value={`${expenses.length} Records`}
+                color={THEME.secondary}
+                icon="receipt-text-outline"
+                style={styles.statCardOverride}
+                isLight
+              />
+            </View>
+
+            {/* Category breakdown chips */}
+            {breakdown.length > 0 && (
+              <View style={styles.breakdownSection}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={[styles.sectionDot, { backgroundColor: THEME.secondary }]} />
+                  <Text style={styles.sectionHeaderTitle}>Category Breakdown</Text>
+                </View>
+                <View style={styles.breakdownWrap}>
+                  {breakdown.map((b) => (
+                    <View key={b._id} style={styles.chip}>
+                      <Text style={styles.chipLabel}>{b._id}</Text>
+                      <Text style={styles.chipAmt}>{fmt(b.total)}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* All Expenses Section Header */}
+            <View style={styles.sectionHeaderRow}>
+              <View style={[styles.sectionDot, { backgroundColor: THEME.primary }]} />
+              <Text style={styles.sectionTitle}>All Expenses</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{expenses.length}</Text>
+              </View>
+            </View>
+          </View>
+        }
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <View style={styles.emptyIconWrap}>
+              <Icon name="receipt-text-outline" size={32} color={THEME.textMuted} />
+            </View>
+            <Text style={styles.emptyTitle}>No expenses recorded yet.</Text>
+            <Text style={styles.emptyText}>Tap "+ Add Expense" above to record a new bill or receipt.</Text>
+          </View>
+        }
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   screen:       { flex: 1 },
-  content:      { padding: SPACING.md, paddingBottom: SPACING.xl },
+  content:      { padding: SPACING.md, paddingBottom: SPACING.xl * 1.5 },
   center:       { flex: 1, justifyContent: 'center', alignItems: 'center' },
+
   header:       { marginBottom: SPACING.md },
-  title:        { fontSize: 20, fontWeight: '800' },
-  sub:          { fontSize: 13 },
-  addBtn:       { paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-  addBtnText:   { color: '#FFF', fontWeight: '700', fontSize: 12 },
-  summaryRow:   { flexDirection: 'row', marginHorizontal: -SPACING.xs, marginBottom: SPACING.sm },
-  breakdownWrap:{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: SPACING.md },
-  chip:         {
-    borderRadius:    8,
-    borderWidth:     1,
-    paddingHorizontal: SPACING.sm,
-    paddingVertical:   4,
-    marginRight:       SPACING.xs,
-    marginBottom:      SPACING.xs,
+  title:        { fontSize: 24, fontWeight: '900', color: THEME.dark, letterSpacing: -0.4 },
+  eventPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(62, 64, 149, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 4,
   },
-  chipLabel:    { fontSize: 11 },
-  chipAmt:      { fontSize: 12, fontWeight: '700' },
-  sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.sm },
-  empty:        { alignItems: 'center', marginTop: 60 },
-  emptyText:    { fontStyle: 'italic' },
+  sub:          { fontSize: 12, fontWeight: '700', color: THEME.secondary },
+  subMuted:     { fontSize: 12, color: THEME.textMuted, marginTop: 2, fontWeight: '500' },
+
+  addBtn: {
+    backgroundColor: THEME.primary,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 14,
+    elevation: 2.5,
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
+  addBtnText:   { color: '#FFF', fontWeight: '800', fontSize: 13 },
+
+  summaryRow: {
+    flexDirection: 'row',
+    marginHorizontal: -SPACING.xs,
+    marginBottom: SPACING.sm,
+  },
+  statCardOverride: {
+    backgroundColor: THEME.surface,
+    borderColor: THEME.border,
+    borderWidth: 1.2,
+    shadowColor: THEME.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+  },
+
+  breakdownSection: {
+    marginBottom: SPACING.sm,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: SPACING.sm,
+    marginBottom: SPACING.xs + 2,
+  },
+  sectionDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+  },
+  sectionHeaderTitle: {
+    fontSize: 13.5,
+    fontWeight: '800',
+    color: THEME.dark,
+    letterSpacing: -0.2,
+  },
+  sectionTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: THEME.dark,
+    letterSpacing: -0.2,
+  },
+  countBadge: {
+    backgroundColor: THEME.borderSubtle,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  countBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: THEME.textMuted,
+  },
+
+  breakdownWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 6,
+    gap: 6,
+  },
+  chip: {
+    backgroundColor: THEME.surface,
+    borderColor: THEME.border,
+    borderWidth: 1.2,
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    elevation: 1,
+    shadowColor: THEME.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+  chipLabel:    { fontSize: 11.5, fontWeight: '600', color: THEME.textMuted },
+  chipAmt:      { fontSize: 12, fontWeight: '800', color: THEME.danger },
+
+  empty: {
+    alignItems: 'center',
+    marginTop: 40,
+    padding: SPACING.lg,
+    backgroundColor: THEME.surfaceSubtle,
+    borderRadius: 20,
+    borderWidth: 1.2,
+    borderColor: THEME.border,
+  },
+  emptyIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: 'rgba(100, 116, 139, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+  },
+  emptyTitle: { fontSize: 15, fontWeight: '800', color: THEME.dark, marginBottom: 4 },
+  emptyText:  { fontSize: 12.5, color: THEME.textMuted, textAlign: 'center', lineHeight: 17 },
 });
 
 export default ExpensesFeedScreen;

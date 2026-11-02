@@ -12,7 +12,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
   Platform, TouchableOpacity, ActivityIndicator, Modal,
-  TextInput, FlatList, SafeAreaView, Linking,
+  TextInput, FlatList, SafeAreaView, Linking, StatusBar,
 } from 'react-native';
 import { residentsAPI, eventsAPI, contributionsAPI } from '../../services/api';
 import { useAlert } from '../../context/AlertContext';
@@ -167,6 +167,7 @@ const CollectFaloScreen = ({ navigation, route }) => {
 
   return (
     <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
 
         {/* ─── Event Selector ─── */}

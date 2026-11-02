@@ -1,29 +1,43 @@
 /**
  * src/screens/admin/LogExpenseScreen.js
  *
- * Admin form to record a new society expense with optional bill image upload.
- * Fully styled for theme compatibility (Light/Dark mode) with optional Resident payer selection.
+ * Admin & Resident form to record a new society expense with optional bill image upload.
+ * Styled with custom brand palette: Background #FFFFFF, Primary #00AFEF, Secondary #3E4095, Dark #1E1E1E.
  */
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, KeyboardAvoidingView,
   Platform, TouchableOpacity, ActivityIndicator,
-  Modal, TextInput, FlatList, SafeAreaView, Image,
+  Modal, TextInput, FlatList, SafeAreaView, Image, StatusBar,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { eventsAPI, expensesAPI, residentsAPI } from '../../services/api';
 import { useAlert } from '../../context/AlertContext';
-import { useTheme } from '../../context/ThemeContext';
 import { useAuth }  from '../../context/AuthContext';
 import Input  from '../../components/Input';
 import Button from '../../components/Button';
-import { COLORS, SPACING, EXPENSE_CATEGORIES, getEventStatus } from '../../constants';
+import { SPACING, EXPENSE_CATEGORIES, getEventStatus } from '../../constants';
 import Icon   from '../../components/Icon';
+
+const THEME = {
+  background:    '#FFFFFF',
+  surface:       '#FFFFFF',
+  surfaceSubtle: '#F8FAFC',
+  primary:       '#00AFEF',  // Sky Blue
+  secondary:     '#3E4095',  // Society Deep Blue
+  dark:          '#1E1E1E',  // Dark Text / Charcoal
+  textMuted:     '#64748B',  // Slate Secondary Text
+  border:        '#E2E8F0',  // Crisp Subtle Border
+  borderSubtle:  '#F1F5F9',
+  cardShadow:    '#3E4095',
+  success:       '#10B981',
+  danger:        '#EF4444',
+  warning:       '#F59E0B',
+};
 
 const LogExpenseScreen = ({ navigation, route }) => {
   const editingExpense = route.params?.expense ?? null;
   const { showError, showSuccess } = useAlert();
-  const { colors } = useTheme();
   const { user, isAdmin, isSuperAdmin } = useAuth();
   const isMember = !isAdmin && !isSuperAdmin;
 
@@ -101,7 +115,7 @@ const LogExpenseScreen = ({ navigation, route }) => {
         setLoading(false);
       }
     })();
-  }, [isMember]);
+  }, [isMember, editingExpense, route.params, showError]);
 
   const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
 
@@ -186,40 +200,57 @@ const LogExpenseScreen = ({ navigation, route }) => {
 
   if (loading) {
     return (
-      <View style={[styles.center, { backgroundColor: colors.background }]}>
-        <ActivityIndicator color={colors.primary} size="large" />
+      <View style={[styles.center, { backgroundColor: THEME.background }]}>
+        <ActivityIndicator color={THEME.primary} size="large" />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView style={[styles.flex, { backgroundColor: colors.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={[styles.flex, { backgroundColor: THEME.background }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+        {/* ─── Top Page Header ─── */}
+        <View style={styles.topHeader}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.75}>
+            <Icon name="arrow-left" size={20} color={THEME.dark} />
+          </TouchableOpacity>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pageTitle}>{editingExpense ? 'Edit Expense' : 'Log Expense'}</Text>
+            <Text style={styles.pageSub}>
+              {editingExpense ? 'Modify expense entry & receipt bill' : 'Record society or event expense'}
+            </Text>
+          </View>
+        </View>
 
         {/* ─── Event Dropdown Picker ─── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Select Event *</Text>
+        <Text style={styles.sectionLabel}>Select Event *</Text>
         <TouchableOpacity
-          style={[styles.dropdownSelector, { backgroundColor: colors.surface, borderColor: colors.border }, errors.event && styles.dropdownError]}
-          activeOpacity={0.7}
+          style={[styles.dropdownSelector, errors.event && styles.dropdownError]}
+          activeOpacity={0.75}
           onPress={() => { setEventSearchQuery(''); setEventModalVisible(true); }}>
+          <View style={[styles.dropdownIconWrap, { backgroundColor: 'rgba(0, 175, 239, 0.1)' }]}>
+            <Icon name="calendar-month-outline" size={18} color={THEME.primary} />
+          </View>
           <View style={{ flex: 1 }}>
-            <Text style={selectedEvent ? [styles.dropdownSelectedText, { color: colors.text }] : [styles.dropdownPlaceholderText, { color: colors.textMuted }]}>
+            <Text style={selectedEvent ? styles.dropdownSelectedText : styles.dropdownPlaceholderText} numberOfLines={1}>
               {selectedEvent ? selectedEvent.title : 'Select Event'}
             </Text>
           </View>
-          <Icon name="chevron-down" size={18} color={colors.textMuted} />
+          <Icon name="chevron-down" size={18} color={THEME.textMuted} />
         </TouchableOpacity>
         {errors.event && <Text style={styles.error}>{errors.event}</Text>}
 
         {/* ─── Paid / Incurred By: Resident Auto-Assignment or Admin Selector ─── */}
         {isMember ? (
-          <View style={[styles.memberInfoPill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <View style={[styles.memberAvatar, { backgroundColor: colors.primary }]}>
+          <View style={styles.memberInfoPill}>
+            <View style={[styles.memberAvatar, { backgroundColor: THEME.secondary }]}>
               <Text style={styles.memberAvatarText}>{user?.name?.[0]?.toUpperCase() || 'M'}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.memberIncurredLabel, { color: colors.textMuted }]}>Expense Incurred By (Self)</Text>
-              <Text style={[styles.memberIncurredName, { color: colors.text }]}>
+              <Text style={styles.memberIncurredLabel}>Expense Incurred By</Text>
+              <Text style={styles.memberIncurredName}>
                 {user?.name || 'Resident Member'}
                 {user?.houseOrFlatNo ? `  ·  Flat ${user.houseOrFlatNo}` : ''}
               </Text>
@@ -230,45 +261,48 @@ const LogExpenseScreen = ({ navigation, route }) => {
           </View>
         ) : (
           <>
-            <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Paid / Incurred By (Optional)</Text>
+            <Text style={styles.sectionLabel}>Paid / Incurred By (Optional)</Text>
             <TouchableOpacity
-              style={[styles.dropdownSelector, { backgroundColor: colors.surface, borderColor: colors.border }]}
-              activeOpacity={0.7}
+              style={styles.dropdownSelector}
+              activeOpacity={0.75}
               onPress={() => { setResidentSearchQuery(''); setResidentModalVisible(true); }}>
+              <View style={[styles.dropdownIconWrap, { backgroundColor: 'rgba(62, 64, 149, 0.1)' }]}>
+                <Icon name="account-outline" size={18} color={THEME.secondary} />
+              </View>
               <View style={{ flex: 1 }}>
                 {selectedResident ? (
                   <>
-                    <Text style={[styles.dropdownSelectedText, { color: colors.text }]}>
+                    <Text style={styles.dropdownSelectedText}>
                       {selectedResident.name}
                       {selectedResident.houseOrFlatNo ? `  ·  Flat ${selectedResident.houseOrFlatNo}` : ''}
                     </Text>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <Icon name="phone-outline" size={13} color={colors.primary} />
-                      <Text style={[styles.dropdownSubText, { color: colors.primary, marginTop: 0 }]}>{selectedResident.phone}</Text>
+                      <Icon name="phone-outline" size={12} color={THEME.primary} />
+                      <Text style={styles.dropdownSubText}>{selectedResident.phone}</Text>
                     </View>
                   </>
                 ) : (
-                  <Text style={[styles.dropdownPlaceholderText, { color: colors.textMuted }]}>Select Resident (Default: Admin / Self)</Text>
+                  <Text style={styles.dropdownPlaceholderText}>Select Resident (Default: Admin / Self)</Text>
                 )}
               </View>
-              <Icon name="chevron-down" size={18} color={colors.textMuted} />
+              <Icon name="chevron-down" size={18} color={THEME.textMuted} />
             </TouchableOpacity>
 
             {/* Selected Resident Summary Card */}
             {selectedResident && (
-              <View style={[styles.selectedSummary, { backgroundColor: colors.primary + '18', borderColor: colors.primary + '35' }]}>
-                <View style={[styles.summaryAvatar, { backgroundColor: colors.primary }]}>
+              <View style={styles.selectedSummary}>
+                <View style={[styles.summaryAvatar, { backgroundColor: THEME.secondary }]}>
                   <Text style={styles.summaryAvatarText}>{selectedResident.name?.[0]?.toUpperCase() || 'R'}</Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={[styles.selectedName, { color: colors.text }]}>{selectedResident.name}</Text>
-                  <Text style={[styles.selectedDetails, { color: colors.textMuted }]}>
+                  <Text style={styles.selectedName}>{selectedResident.name}</Text>
+                  <Text style={styles.selectedDetails}>
                     {selectedResident.houseOrFlatNo ? `Flat ${selectedResident.houseOrFlatNo}  •  ` : ''}
                     {selectedResident.phone}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => setSelectedResident(null)}>
-                  <Icon name="close" size={18} color={colors.textMuted} style={{ padding: 4 }} />
+                  <Icon name="close" size={18} color={THEME.textMuted} style={{ padding: 4 }} />
                 </TouchableOpacity>
               </View>
             )}
@@ -282,6 +316,9 @@ const LogExpenseScreen = ({ navigation, route }) => {
           value={title}
           onChangeText={(t) => { setTitle(t); setErrors((e) => ({ ...e, title: '' })); }}
           error={errors.title}
+          labelStyle={{ color: THEME.dark, fontWeight: '700' }}
+          inputStyle={{ backgroundColor: THEME.surface, borderColor: THEME.border, color: THEME.dark, borderRadius: 12 }}
+          focusedBorderColor={THEME.primary}
         />
 
         <Input
@@ -292,10 +329,13 @@ const LogExpenseScreen = ({ navigation, route }) => {
           keyboardType="numeric"
           error={errors.amount}
           selectTextOnFocus={true}
+          labelStyle={{ color: THEME.dark, fontWeight: '700' }}
+          inputStyle={{ backgroundColor: THEME.surface, borderColor: THEME.border, color: THEME.dark, borderRadius: 12 }}
+          focusedBorderColor={THEME.primary}
         />
 
         {/* ─── Category Picker ─── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Category</Text>
+        <Text style={styles.sectionLabel}>Category</Text>
         <View style={styles.pillRow}>
           {EXPENSE_CATEGORIES.map((cat) => {
             const isActive = category === cat;
@@ -304,27 +344,39 @@ const LogExpenseScreen = ({ navigation, route }) => {
                 key={cat}
                 style={[
                   styles.pill,
-                  { backgroundColor: colors.surface, borderColor: colors.border },
-                  isActive && { backgroundColor: colors.primary, borderColor: colors.primary }
+                  isActive && styles.pillActive,
                 ]}
+                activeOpacity={0.75}
                 onPress={() => setCategory(cat)}>
-                <Text style={[styles.pillText, { color: colors.text }, isActive && { color: '#FFFFFF', fontWeight: '700' }]}>{cat}</Text>
+                <Text style={[styles.pillText, isActive && styles.pillTextActive]}>{cat}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
         {/* ─── Receipt Photo ─── */}
-        <Text style={[styles.sectionLabel, { color: colors.textMuted }]}>Bill / Receipt Photo (Optional)</Text>
+        <Text style={styles.sectionLabel}>Bill / Receipt Photo (Optional)</Text>
         <TouchableOpacity
-          style={[styles.imagePickerBtn, { backgroundColor: colors.surface, borderColor: colors.border }]}
+          style={styles.imagePickerBtn}
+          activeOpacity={0.75}
           onPress={handlePickImage}>
           {receiptImage ? (
-            <Image source={{ uri: receiptImage.uri }} style={styles.previewImage} />
+            <View style={styles.previewContainer}>
+              <Image source={{ uri: receiptImage.uri }} style={styles.previewImage} />
+              <View style={styles.changePhotoPill}>
+                <Icon name="camera-retake-outline" size={13} color="#FFFFFF" style={{ marginRight: 4 }} />
+                <Text style={styles.changePhotoText}>Change Photo</Text>
+              </View>
+            </View>
           ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Icon name="camera-outline" size={18} color={colors.primary} />
-              <Text style={[styles.imagePickerText, { color: colors.primary }]}>Upload Receipt Image</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={styles.cameraIconWrap}>
+                <Icon name="camera-plus-outline" size={20} color={THEME.primary} />
+              </View>
+              <View>
+                <Text style={styles.imagePickerText}>Upload Bill / Receipt Photo</Text>
+                <Text style={styles.imagePickerSub}>Tap to browse photo gallery</Text>
+              </View>
             </View>
           )}
         </TouchableOpacity>
@@ -336,13 +388,17 @@ const LogExpenseScreen = ({ navigation, route }) => {
           value={notes}
           onChangeText={setNotes}
           multiline
+          labelStyle={{ color: THEME.dark, fontWeight: '700' }}
+          inputStyle={{ backgroundColor: THEME.surface, borderColor: THEME.border, color: THEME.dark, borderRadius: 12 }}
+          focusedBorderColor={THEME.primary}
         />
 
         <Button
           title={editingExpense ? "Update Expense" : "Save Expense"}
           onPress={handleSubmit}
           loading={submitting}
-          style={{ marginTop: SPACING.md }}
+          style={styles.submitBtn}
+          textStyle={styles.submitBtnText}
         />
       </ScrollView>
 
@@ -353,19 +409,19 @@ const LogExpenseScreen = ({ navigation, route }) => {
         transparent={true}
         onRequestClose={() => setEventModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Event</Text>
-              <TouchableOpacity onPress={() => setEventModalVisible(false)}>
-                <Icon name="close" size={20} color={colors.textMuted} />
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Event</Text>
+              <TouchableOpacity onPress={() => setEventModalVisible(false)} style={styles.modalCloseBtn}>
+                <Icon name="close" size={20} color={THEME.textMuted} />
               </TouchableOpacity>
             </View>
 
             {events.length > 5 && (
               <TextInput
-                style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                style={styles.searchInput}
                 placeholder="Search event..."
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={THEME.textMuted}
                 value={eventSearchQuery}
                 onChangeText={setEventSearchQuery}
                 autoCapitalize="none"
@@ -375,34 +431,35 @@ const LogExpenseScreen = ({ navigation, route }) => {
             <FlatList
               data={filteredEvents}
               keyExtractor={(item) => item._id}
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const isSelected = selectedEvent?._id === item._id;
                 return (
                   <TouchableOpacity
-                    style={[styles.listItem, { borderBottomColor: colors.border + '60' }, isSelected && { backgroundColor: colors.primary + '18', borderRadius: 8 }]}
+                    style={[styles.listItem, isSelected && styles.listItemSelected]}
                     onPress={() => {
                       setSelectedEvent(item);
                       setErrors((e) => ({ ...e, event: '' }));
                       setEventModalVisible(false);
                     }}>
-                    <View style={[styles.eventBadgeIcon, { backgroundColor: item.isGeneral ? colors.primary + '18' : '#10B98118' }]}>
-                      <Icon name={item.isGeneral ? 'office-building' : 'calendar-star'} size={18} color={item.isGeneral ? colors.primary : '#10B981'} />
+                    <View style={[styles.eventBadgeIcon, { backgroundColor: item.isGeneral ? 'rgba(0, 175, 239, 0.12)' : 'rgba(16, 185, 129, 0.12)' }]}>
+                      <Icon name={item.isGeneral ? 'office-building' : 'calendar-star'} size={18} color={item.isGeneral ? THEME.primary : THEME.success} />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.listItemTitle, { color: colors.text }, isSelected && { color: colors.primary, fontWeight: '700' }]}>
+                      <Text style={[styles.listItemTitle, isSelected && { color: THEME.primary, fontWeight: '800' }]}>
                         {item.title}
                       </Text>
-                      <Text style={[styles.listItemSub, { color: colors.textMuted }]}>
+                      <Text style={styles.listItemSub}>
                         {item.isGeneral ? 'Routine society maintenance, repairs & operations' : 'Active festival / society event'}
                       </Text>
                     </View>
-                    {isSelected && <Icon name="check" size={18} color={colors.primary} />}
+                    {isSelected && <Icon name="check-circle" size={20} color={THEME.primary} />}
                   </TouchableOpacity>
                 );
               }}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>No events found</Text>
+                  <Text style={styles.emptyText}>No events found</Text>
                 </View>
               }
             />
@@ -417,24 +474,24 @@ const LogExpenseScreen = ({ navigation, route }) => {
         transparent={true}
         onRequestClose={() => setResidentModalVisible(false)}>
         <View style={styles.modalOverlay}>
-          <SafeAreaView style={[styles.modalContainer, { backgroundColor: colors.surface }]}>
-            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Resident</Text>
-              <TouchableOpacity onPress={() => setResidentModalVisible(false)}>
-                <Icon name="close" size={20} color={colors.textMuted} />
+          <SafeAreaView style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Resident</Text>
+              <TouchableOpacity onPress={() => setResidentModalVisible(false)} style={styles.modalCloseBtn}>
+                <Icon name="close" size={20} color={THEME.textMuted} />
               </TouchableOpacity>
             </View>
 
             <TextInput
-              style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+              style={styles.searchInput}
               placeholder="Search name, flat no, or phone..."
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={THEME.textMuted}
               value={residentSearchQuery}
               onChangeText={setResidentSearchQuery}
               autoCapitalize="none"
             />
 
-            <Text style={[styles.resultCount, { color: colors.textMuted }]}>
+            <Text style={styles.resultCount}>
               Showing {filteredResidents.length} of {residents.length} residents
             </Text>
 
@@ -442,43 +499,44 @@ const LogExpenseScreen = ({ navigation, route }) => {
               data={filteredResidents}
               keyExtractor={(item) => item._id}
               keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
               renderItem={({ item }) => {
                 const isSelected = selectedResident?._id === item._id;
                 return (
                   <TouchableOpacity
-                    style={[styles.listItem, { borderBottomColor: colors.border + '60' }, isSelected && { backgroundColor: colors.primary + '18', borderRadius: 8 }]}
+                    style={[styles.listItem, isSelected && styles.listItemSelected]}
                     onPress={() => {
                       setSelectedResident(item);
                       setResidentModalVisible(false);
                     }}>
-                    <View style={[styles.itemAvatar, { backgroundColor: colors.border }]}>
-                      <Text style={[styles.itemAvatarText, { color: colors.textMuted }]}>{item.name?.[0]?.toUpperCase() || 'R'}</Text>
+                    <View style={[styles.itemAvatar, { backgroundColor: 'rgba(62, 64, 149, 0.1)' }]}>
+                      <Text style={[styles.itemAvatarText, { color: THEME.secondary }]}>{item.name?.[0]?.toUpperCase() || 'R'}</Text>
                     </View>
 
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Text style={[styles.listItemTitle, { color: colors.text }, isSelected && { color: colors.primary }]}>
+                        <Text style={[styles.listItemTitle, isSelected && { color: THEME.primary, fontWeight: '800' }]}>
                           {item.name}
                         </Text>
                         {item.houseOrFlatNo ? (
-                          <View style={[styles.flatBadge, { backgroundColor: colors.primary + '20' }]}>
-                            <Text style={[styles.flatBadgeText, { color: colors.primary }]}>Flat {item.houseOrFlatNo}</Text>
+                          <View style={styles.flatBadge}>
+                            <Text style={styles.flatBadgeText}>Flat {item.houseOrFlatNo}</Text>
                           </View>
                         ) : null}
                       </View>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                        <Icon name="phone-outline" size={12} color={colors.textMuted} />
-                        <Text style={[styles.listItemSub, { color: colors.textMuted, marginTop: 0 }]}>{item.phone}</Text>
+                        <Icon name="phone-outline" size={12} color={THEME.textMuted} />
+                        <Text style={styles.listItemSub}>{item.phone}</Text>
                       </View>
                     </View>
 
-                    {isSelected && <Icon name="check" size={18} color={colors.primary} />}
+                    {isSelected && <Icon name="check-circle" size={20} color={THEME.primary} />}
                   </TouchableOpacity>
                 );
               }}
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
-                  <Text style={[styles.emptyText, { color: colors.textMuted }]}>No residents found matching "{residentSearchQuery}"</Text>
+                  <Text style={styles.emptyText}>No residents found matching "{residentSearchQuery}"</Text>
                 </View>
               }
             />
@@ -492,101 +550,184 @@ const LogExpenseScreen = ({ navigation, route }) => {
 
 const styles = StyleSheet.create({
   flex:    { flex: 1 },
-  content: { padding: SPACING.md, paddingBottom: SPACING.xl },
+  content: { padding: SPACING.md, paddingBottom: SPACING.xl * 1.5 },
   center:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  sectionLabel: { fontSize: 13, fontWeight: '700', marginBottom: SPACING.xs, marginTop: SPACING.sm },
+
+  topHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: SPACING.md,
+  },
+  backBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: THEME.surfaceSubtle,
+    borderWidth: 1.2,
+    borderColor: THEME.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pageTitle: { fontSize: 20, fontWeight: '900', color: THEME.dark, letterSpacing: -0.3 },
+  pageSub:   { fontSize: 12, color: THEME.textMuted, marginTop: 1, fontWeight: '500' },
+
+  sectionLabel: { fontSize: 13, fontWeight: '800', color: THEME.dark, marginBottom: SPACING.xs, marginTop: SPACING.sm },
 
   // Dropdown selector button styles
   dropdownSelector: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: COLORS.surface,
+    backgroundColor: THEME.surface,
     borderWidth: 1.2,
-    borderColor: COLORS.border,
-    borderRadius: 10,
-    paddingHorizontal: SPACING.md,
+    borderColor: THEME.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: SPACING.xs,
+    elevation: 1,
+    shadowColor: THEME.secondary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+  },
+  dropdownIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
   },
   dropdownError: {
-    borderColor: COLORS.danger,
+    borderColor: THEME.danger,
   },
   dropdownPlaceholderText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
+    fontSize: 13.5,
+    color: THEME.textMuted,
+    fontWeight: '500',
   },
   dropdownSelectedText: {
     fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
+    fontWeight: '700',
+    color: THEME.dark,
   },
   dropdownSubText: {
     fontSize: 12,
-    color: COLORS.primary,
-    marginTop: 2,
-  },
-  dropdownChevron: {
-    fontSize: 12,
-    color: COLORS.textMuted,
-    marginLeft: SPACING.xs,
+    color: THEME.primary,
+    fontWeight: '600',
   },
 
   selectedSummary: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.primary + '10',
-    borderWidth: 1,
-    borderColor: COLORS.primary + '30',
-    borderRadius: 10,
-    padding: SPACING.sm,
+    backgroundColor: 'rgba(62, 64, 149, 0.06)',
+    borderWidth: 1.2,
+    borderColor: 'rgba(62, 64, 149, 0.18)',
+    borderRadius: 14,
+    padding: SPACING.sm + 2,
     marginTop: 4,
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
     gap: SPACING.sm,
   },
   summaryAvatar: {
     width: 36,
     height: 36,
-    borderRadius: 18,
-    backgroundColor: COLORS.primary,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   summaryAvatarText: {
-    color: COLORS.white,
-    fontWeight: '700',
+    color: '#FFFFFF',
+    fontWeight: '900',
     fontSize: 15,
   },
   selectedName: {
     fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontWeight: '800',
+    color: THEME.dark,
   },
   selectedDetails: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontSize: 11.5,
+    color: THEME.textMuted,
     marginTop: 1,
+    fontWeight: '500',
   },
 
-  pillRow:    { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginBottom: SPACING.md },
-  pill:       { borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, paddingHorizontal: 12, paddingVertical: 8 },
-  pillText:   { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  pillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: SPACING.xs, marginBottom: SPACING.md },
+  pill: {
+    borderRadius: 12,
+    borderWidth: 1.2,
+    borderColor: THEME.border,
+    backgroundColor: THEME.surface,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  pillActive: {
+    backgroundColor: THEME.primary,
+    borderColor: THEME.primary,
+    elevation: 2,
+    shadowColor: THEME.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.25,
+    shadowRadius: 6,
+  },
+  pillText:       { fontSize: 12.5, color: THEME.dark, fontWeight: '600' },
+  pillTextActive: { color: '#FFFFFF', fontWeight: '800' },
 
   imagePickerBtn: {
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(0, 175, 239, 0.35)',
     borderStyle: 'dashed',
-    borderRadius: 12,
-    padding: SPACING.lg,
+    borderRadius: 16,
+    padding: SPACING.md,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: SPACING.md,
-    backgroundColor: COLORS.surface,
-    minHeight: 100,
+    backgroundColor: 'rgba(0, 175, 239, 0.04)',
+    minHeight: 90,
   },
-  imagePickerText: { color: COLORS.primary, fontWeight: '600' },
-  previewImage:    { width: 120, height: 120, borderRadius: 8 },
-  error:           { fontSize: 12, color: COLORS.danger, marginBottom: SPACING.sm },
+  cameraIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0, 175, 239, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePickerText: { color: THEME.primary, fontWeight: '800', fontSize: 13.5 },
+  imagePickerSub:  { color: THEME.textMuted, fontSize: 11, marginTop: 2, fontWeight: '500' },
+  previewContainer: { alignItems: 'center' },
+  previewImage:    { width: 130, height: 130, borderRadius: 12 },
+  changePhotoPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: THEME.secondary,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 12,
+    marginTop: 8,
+  },
+  changePhotoText: { color: '#FFF', fontSize: 11, fontWeight: '800' },
+  error:           { fontSize: 12, color: THEME.danger, marginBottom: SPACING.sm, fontWeight: '600' },
+
+  submitBtn: {
+    backgroundColor: THEME.secondary,
+    borderRadius: 16,
+    minHeight: 52,
+    marginTop: SPACING.md,
+    elevation: 3.5,
+    shadowColor: THEME.secondary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
 
   // Modal styles
   modalOverlay: {
@@ -595,9 +736,9 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalContainer: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
+    backgroundColor: THEME.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
     maxHeight: '85%',
     minHeight: '50%',
     padding: SPACING.md,
@@ -606,37 +747,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: SPACING.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingBottom: SPACING.sm + 2,
+    borderBottomWidth: 1.2,
+    borderBottomColor: THEME.border,
   },
   modalTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '800',
+    color: THEME.dark,
+    letterSpacing: -0.3,
   },
   modalCloseBtn: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: COLORS.textMuted,
-    padding: 4,
+    padding: 6,
+    borderRadius: 10,
+    backgroundColor: THEME.surfaceSubtle,
   },
   searchInput: {
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 10,
+    borderWidth: 1.2,
+    borderColor: THEME.border,
+    backgroundColor: THEME.surfaceSubtle,
+    borderRadius: 12,
     paddingHorizontal: SPACING.md,
     paddingVertical: 10,
-    fontSize: 14,
-    color: COLORS.text,
+    fontSize: 13.5,
+    color: THEME.dark,
     marginTop: SPACING.sm,
     marginBottom: 4,
   },
   resultCount: {
-    fontSize: 11,
-    color: COLORS.textMuted,
+    fontSize: 11.5,
+    color: THEME.textMuted,
     marginBottom: SPACING.xs,
     marginLeft: 4,
+    fontWeight: '600',
   },
   listItem: {
     flexDirection: 'row',
@@ -644,55 +787,45 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: SPACING.sm,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border + '60',
+    borderBottomColor: THEME.borderSubtle,
     gap: SPACING.sm,
   },
   listItemSelected: {
-    backgroundColor: COLORS.primary + '10',
-    borderRadius: 8,
+    backgroundColor: 'rgba(0, 175, 239, 0.08)',
+    borderRadius: 12,
   },
   listItemTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-  },
-  listItemTitleSelected: {
-    color: COLORS.primary,
+    fontWeight: '700',
+    color: THEME.dark,
   },
   listItemSub: {
-    fontSize: 12,
-    color: COLORS.textMuted,
+    fontSize: 11.5,
+    color: THEME.textMuted,
     marginTop: 2,
+    fontWeight: '500',
   },
   itemAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.border,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   itemAvatarText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: COLORS.textMuted,
+    fontSize: 14.5,
+    fontWeight: '800',
   },
   flatBadge: {
-    backgroundColor: COLORS.primary + '20',
-    paddingHorizontal: 6,
+    backgroundColor: 'rgba(62, 64, 149, 0.08)',
+    paddingHorizontal: 7,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   flatBadgeText: {
     fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.primary,
-  },
-  checkMark: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: COLORS.primary,
-    marginLeft: 4,
+    fontWeight: '800',
+    color: THEME.secondary,
   },
   emptyContainer: {
     padding: SPACING.xl,
@@ -700,55 +833,60 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    color: COLORS.textMuted,
+    color: THEME.textMuted,
+    fontWeight: '500',
   },
   memberInfoPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: THEME.border,
+    backgroundColor: THEME.surfaceSubtle,
     marginTop: 6,
     marginBottom: SPACING.sm,
   },
   memberAvatar: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
   memberAvatarText: {
     color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 14,
+    fontWeight: '900',
+    fontSize: 15,
   },
   memberIncurredLabel: {
     fontSize: 11,
     fontWeight: '600',
+    color: THEME.textMuted,
   },
   memberIncurredName: {
     fontSize: 13.5,
-    fontWeight: '700',
+    fontWeight: '800',
+    color: THEME.dark,
     marginTop: 1,
   },
   selfBadge: {
-    backgroundColor: '#10B98120',
+    backgroundColor: '#ECFDF5',
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   selfBadgeText: {
     fontSize: 11,
     fontWeight: '800',
-    color: '#10B981',
+    color: THEME.success,
   },
   eventBadgeIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },

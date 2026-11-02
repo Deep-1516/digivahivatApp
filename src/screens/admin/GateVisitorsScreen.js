@@ -11,10 +11,12 @@ import React, { useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TouchableOpacity,
   Modal, ActivityIndicator, RefreshControl,
-  ScrollView, KeyboardAvoidingView, Platform,
+  ScrollView, KeyboardAvoidingView, Platform, StatusBar,
+  NativeModules,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useAlert } from '../../context/AlertContext';
 import { visitorsAPI } from '../../services/api';
@@ -22,6 +24,8 @@ import Input from '../../components/Input';
 import Button from '../../components/Button';
 import Icon from '../../components/Icon';
 import { COLORS, SPACING } from '../../constants';
+
+const { NotificationSound } = NativeModules;
 
 const TABS = [
   { key: 'Inside',      label: 'Inside Now' },
@@ -32,6 +36,7 @@ const TABS = [
 
 const GateVisitorsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { user, isGuard, logout } = useAuth();
   const { colors } = useTheme();
   const { showError, showSuccess, showConfirm } = useAlert();
 
@@ -69,26 +74,32 @@ const GateVisitorsScreen = ({ navigation }) => {
     }
   }, [activeTab, search, showError]);
 
-  useFocusEffect(useCallback(() => { fetchRegister(); }, [fetchRegister]));
+  useFocusEffect(
+    useCallback(() => {
+      fetchRegister();
+      // Auto-refresh visitor register every 4 seconds so gate entries and exits update without manual pull-to-refresh
+      const pollTimer = setInterval(() => {
+        fetchRegister();
+      }, 4000);
+      return () => clearInterval(pollTimer);
+    }, [fetchRegister])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchRegister();
   };
 
-  // ─── Verify Code / QR ───
-  const handleVerify = async () => {
-    if (!passcodeInput.trim()) {
-      showError('Input Required', 'Please enter the 6-digit passcode or paste QR token.');
-      return;
-    }
+  // ─── Verify Code / Raw Scan Payload ───
+  const verifyPassPayload = async (payload) => {
     setVerifying(true);
+    setVerifyModalVisible(true);
     try {
-      const res = await visitorsAPI.verify({ code: passcodeInput.trim() });
+      const res = await visitorsAPI.verify(payload);
       const passData = res.data?.data;
       setVerifiedPass(passData);
-      setCheckinMembers(passData.numberOfMembers || 1);
-      setCheckinVehicle(passData.vehicleNumber || '');
+      setCheckinMembers(passData?.numberOfMembers || 1);
+      setCheckinVehicle(passData?.vehicleNumber || '');
 
       if (!res.data?.canCheckIn && !res.data?.canCheckOut) {
         showError('Pass Notice', res.data?.message || 'Cannot check in with this pass.');
@@ -99,6 +110,39 @@ const GateVisitorsScreen = ({ navigation }) => {
     } finally {
       setVerifying(false);
     }
+  };
+
+  const handleVerify = () => {
+    if (!passcodeInput.trim()) {
+      showError('Input Required', 'Please enter the 6-digit passcode or paste QR token.');
+      return;
+    }
+    verifyPassPayload({ code: passcodeInput.trim() });
+  };
+
+  /**
+   * Scan QR / Enter Passcode:
+   * First opens the native Google Play Services camera QR scanner.
+   * If scanner succeeds: verifies and displays verified pass immediately.
+   * If scanner is cancelled, fails, or is unavailable: seamlessly falls back to
+   * opening the manual Passcode Input box!
+   */
+  const handleScanOrInput = async () => {
+    if (NotificationSound?.scanQrCode) {
+      try {
+        const scanResult = await NotificationSound.scanQrCode();
+        if (scanResult && typeof scanResult === 'string' && scanResult.trim()) {
+          await verifyPassPayload({ rawScan: scanResult.trim() });
+          return;
+        }
+      } catch (scanErr) {
+        console.log('QR Scanner cancelled/error, displaying manual passcode input box:', scanErr);
+      }
+    }
+    // QR Scanner cancelled/failed -> open passcode input modal
+    setVerifiedPass(null);
+    setPasscodeInput('');
+    setVerifyModalVisible(true);
   };
 
   // ─── Confirm Check-In ───
@@ -128,10 +172,12 @@ const GateVisitorsScreen = ({ navigation }) => {
 
   // ─── Record Checkout / Exit ───
   const handleCheckout = (visitor) => {
-    showConfirm(
-      'Visitor Exit',
-      `Mark ${visitor.visitorName} (Flat ${visitor.flatNo}) as exited from society?`,
-      async () => {
+    showConfirm({
+      title: 'Visitor Exit',
+      message: `Mark ${visitor.visitorName} (Flat ${visitor.flatNo}) as exited from society?`,
+      confirmText: 'Record Exit',
+      cancelText: 'Cancel',
+      onConfirm: async () => {
         try {
           await visitorsAPI.checkout(visitor._id);
           showSuccess('Exit Logged', `${visitor.visitorName} checked out successfully.`);
@@ -139,8 +185,8 @@ const GateVisitorsScreen = ({ navigation }) => {
         } catch (err) {
           showError('Checkout Failed', err.message || 'Could not mark exit.');
         }
-      }
-    );
+      },
+    });
   };
 
   const renderVisitorCard = ({ item }) => {
@@ -270,6 +316,7 @@ const GateVisitorsScreen = ({ navigation }) => {
 
   return (
     <View style={[styles.screen, { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 12) }]}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.border }]}>
@@ -284,20 +331,41 @@ const GateVisitorsScreen = ({ navigation }) => {
           )}
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: colors.text }]}>Security Gate Register</Text>
-            <Text style={[styles.sub, { color: colors.textMuted }]}>Scan QR & monitor society visitors</Text>
+            <Text style={[styles.sub, { color: colors.textMuted }]}>
+              {isGuard ? `Security Guard: ${user?.name || 'Gate Officer'}` : 'Scan QR & monitor society visitors'}
+            </Text>
           </View>
         </View>
+
+        {isGuard && (
+          <TouchableOpacity
+            onPress={() => {
+              showConfirm({
+                title: 'Guard Logout',
+                message: 'Are you sure you want to log out from Gate Security?',
+                confirmText: 'Log Out',
+                cancelText: 'Cancel',
+                onConfirm: async () => {
+                  try {
+                    await logout();
+                  } catch (err) {
+                    showError('Logout Failed', err.message);
+                  }
+                },
+              });
+            }}
+            style={[styles.logoutBtn, { borderColor: colors.danger + '40', backgroundColor: colors.danger + '10' }]}>
+            <Icon name="logout" size={15} color={colors.danger} />
+            <Text style={[styles.logoutBtnText, { color: colors.danger }]}>Logout</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
-      {/* Top Action Bar — Big "Verify Pass" Button */}
+      {/* Top Action Bar — Big "Scan QR / Enter Passcode" Button */}
       <View style={styles.scanActionBox}>
         <TouchableOpacity
           style={[styles.verifyTriggerBtn, { backgroundColor: colors.primary }]}
-          onPress={() => {
-            setVerifiedPass(null);
-            setPasscodeInput('');
-            setVerifyModalVisible(true);
-          }}
+          onPress={handleScanOrInput}
           activeOpacity={0.85}>
           <Icon name="qrcode-scan" size={20} color="#FFFFFF" />
           <Text style={styles.verifyTriggerText}>Scan QR / Enter Passcode</Text>
@@ -401,9 +469,39 @@ const GateVisitorsScreen = ({ navigation }) => {
               {/* Input Box */}
               {!verifiedPass ? (
                 <View>
-                  <Text style={[styles.inputHeading, { color: colors.text }]}>Enter Visitor Passcode</Text>
+                  {/* Camera Scanner Trigger inside modal */}
+                  <TouchableOpacity
+                    style={[styles.modalCameraScanBtn, { backgroundColor: colors.primary + '12', borderColor: colors.primary }]}
+                    onPress={async () => {
+                      if (NotificationSound?.scanQrCode) {
+                        try {
+                          const scanResult = await NotificationSound.scanQrCode();
+                          if (scanResult && typeof scanResult === 'string' && scanResult.trim()) {
+                            await verifyPassPayload({ rawScan: scanResult.trim() });
+                          }
+                        } catch (e) {
+                          console.log('Modal QR scanner cancelled or error:', e);
+                        }
+                      } else {
+                        showError('Unavailable', 'Camera QR code scanner is not supported on this device.');
+                      }
+                    }}
+                    activeOpacity={0.8}>
+                    <Icon name="camera-outline" size={20} color={colors.primary} />
+                    <Text style={[styles.modalCameraScanText, { color: colors.primary }]}>
+                      Scan Pass QR with Camera
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.orDividerRow}>
+                    <View style={[styles.orDividerLine, { backgroundColor: colors.border }]} />
+                    <Text style={[styles.orDividerText, { color: colors.textMuted }]}>OR ENTER PASSCODE</Text>
+                    <View style={[styles.orDividerLine, { backgroundColor: colors.border }]} />
+                  </View>
+
+                  <Text style={[styles.inputHeading, { color: colors.text }]}>Enter 6-Digit Passcode</Text>
                   <Text style={[styles.inputSub, { color: colors.textMuted }]}>
-                    Ask the visitor for their 6-digit passcode or QR code token:
+                    Ask the visitor for their 6-digit passcode or paste token:
                   </Text>
 
                   <Input
@@ -411,7 +509,8 @@ const GateVisitorsScreen = ({ navigation }) => {
                     value={passcodeInput}
                     onChangeText={setPasscodeInput}
                     autoCapitalize="characters"
-                    containerStyle={{ marginTop: 8 }}
+                    keyboardType="number-pad"
+                    containerStyle={{ marginTop: 4 }}
                   />
 
                   <Button
@@ -788,6 +887,49 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   resetVerificationText: { fontSize: 12, fontWeight: '600' },
+
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  logoutBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  modalCameraScanBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    marginBottom: SPACING.md,
+  },
+  modalCameraScanText: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  orDividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    gap: 8,
+  },
+  orDividerLine: {
+    flex: 1,
+    height: 1,
+  },
+  orDividerText: {
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
 });
 
 export default GateVisitorsScreen;

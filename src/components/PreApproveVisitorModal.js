@@ -5,11 +5,11 @@
  * Generates an instant Digital Gate Pass with QR Code and 6-digit Passcode
  * with 1-tap WhatsApp/SMS sharing.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, Modal, ScrollView,
   TouchableOpacity, Image, Share, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Linking,
+  KeyboardAvoidingView, Platform, Linking, NativeModules,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
@@ -29,7 +29,7 @@ const VISITOR_TYPES = [
   { key: 'Other',    label: 'Other',    icon: 'dots-horizontal' },
 ];
 
-const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
+const PreApproveVisitorModal = ({ visible, onClose, onSuccess, initialPass = null }) => {
   const insets = useSafeAreaInsets();
   const { colors } = useTheme();
   const { user } = useAuth();
@@ -44,7 +44,15 @@ const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
   const [notes,           setNotes]           = useState('');
 
   const [submitting,      setSubmitting]      = useState(false);
-  const [createdPass,     setCreatedPass]     = useState(null); // When generated
+  const [createdPass,     setCreatedPass]     = useState(initialPass); // When generated or viewed
+
+  useEffect(() => {
+    if (initialPass) {
+      setCreatedPass(initialPass);
+    } else {
+      setCreatedPass(null);
+    }
+  }, [initialPass, visible]);
 
   const resetForm = () => {
     setVisitorName('');
@@ -119,6 +127,19 @@ const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
     if (!createdPass) return;
     try {
       const message = getPassShareMessage();
+      const qrDataUrl = createdPass.qrCodeDataUrl;
+
+      // 1. Direct native share of the QR Code image attachment + message to WhatsApp
+      if (qrDataUrl && NativeModules.NotificationSound?.shareQrToWhatsApp) {
+        try {
+          await NativeModules.NotificationSound.shareQrToWhatsApp(qrDataUrl, message);
+          return;
+        } catch (nativeErr) {
+          console.warn('Native WhatsApp share error, falling back to URL scheme:', nativeErr);
+        }
+      }
+
+      // 2. Fallback to WhatsApp URL scheme if native image share fails
       const targetPhone = createdPass.visitorPhone ? createdPass.visitorPhone.replace(/\D/g, '') : '';
       const phoneParam = targetPhone ? (targetPhone.length === 10 ? `91${targetPhone}` : targetPhone) : '';
 
@@ -150,6 +171,15 @@ const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
     if (!createdPass) return;
     try {
       const message = getPassShareMessage();
+      const qrDataUrl = createdPass.qrCodeDataUrl;
+
+      if (qrDataUrl && NativeModules.NotificationSound?.shareQrGeneral) {
+        try {
+          await NativeModules.NotificationSound.shareQrGeneral(qrDataUrl, message);
+          return;
+        } catch (_) {}
+      }
+
       await Share.share({
         title: `Gate Pass for ${createdPass.visitorName}`,
         message,
@@ -202,9 +232,11 @@ const PreApproveVisitorModal = ({ visible, onClose, onSuccess }) => {
 
                   {/* QR Code Container */}
                   <View style={styles.qrContainer}>
-                    {createdPass.qrCodeDataUrl ? (
+                    {createdPass.qrCodeDataUrl || createdPass._id || createdPass.qrToken ? (
                       <Image
-                        source={{ uri: createdPass.qrCodeDataUrl }}
+                        source={{
+                          uri: createdPass.qrCodeDataUrl || `${API_BASE_URL}/visitors/pass/${createdPass._id || createdPass.qrToken}/qr`,
+                        }}
                         style={styles.qrImage}
                         resizeMode="contain"
                       />
@@ -505,7 +537,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   voucherHeader: {
-    backgroundColor: '#0A192F',
+    backgroundColor: '#3E4095',
     paddingVertical: 14,
     paddingHorizontal: SPACING.md,
     alignItems: 'center',

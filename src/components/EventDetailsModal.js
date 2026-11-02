@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import { eventsAPI, contributionsAPI } from '../services/api';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import ProgressBar from './ProgressBar';
 import { SPACING } from '../constants';
 import Icon from './Icon';
@@ -24,15 +25,20 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-IN', { day: '2-dig
 
 export default function EventDetailsModal({ visible, onClose, event }) {
   const { colors } = useTheme();
-  const [dashboard, setDashboard]         = useState(null);
+  const { user, isAdmin } = useAuth();
+  const [dashboard, setDashboard]         = useState(event?._dashboard || null);
   const [contributions, setContributions] = useState([]);
-  const [loading, setLoading]             = useState(false);
+  const [loading, setLoading]             = useState(!event?._dashboard);
   const [searchQuery, setSearchQuery]     = useState('');
 
   useEffect(() => {
     if (!visible || !event?._id) return;
     let isMounted = true;
-    setLoading(true);
+    if (event._dashboard) {
+      setDashboard(event._dashboard);
+    } else {
+      setLoading(true);
+    }
 
     Promise.all([
       eventsAPI.dashboard(event._id),
@@ -40,11 +46,11 @@ export default function EventDetailsModal({ visible, onClose, event }) {
     ])
       .then(([dashRes, contRes]) => {
         if (!isMounted) return;
-        setDashboard(dashRes.data.data);
-        setContributions(contRes.data.data || []);
+        setDashboard(dashRes.data?.data || null);
+        setContributions(contRes.data?.data || []);
       })
       .catch((err) => {
-        console.error('Failed to fetch event details:', err);
+        console.warn('⚠️ [EventDetailsModal] Fetch error:', err.message);
       })
       .finally(() => {
         if (isMounted) setLoading(false);
@@ -128,8 +134,8 @@ export default function EventDetailsModal({ visible, onClose, event }) {
                 </View>
               )}
 
-              {/* Excluded Residents */}
-              {event.excludedResidents && event.excludedResidents.length > 0 && (
+              {/* Excluded Residents (Admins only - to prevent public embarrassment) */}
+              {isAdmin && event.excludedResidents && event.excludedResidents.length > 0 && (
                 <View style={[styles.sectionMargin, { backgroundColor: '#EF444415', padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#EF444444' }]}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
                     <Icon name="account-cancel-outline" size={16} color="#DC2626" style={{ marginRight: 4 }} />
@@ -149,50 +155,119 @@ export default function EventDetailsModal({ visible, onClose, event }) {
                 </View>
               )}
 
-              {/* Paid Persons List */}
-              <View style={styles.sectionMargin}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                  <Icon name="credit-card-check-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
-                  <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
-                    Paid Fund Members ({contributions.length})
-                  </Text>
-                </View>
-
-                <TextInput
-                  style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
-                  placeholder="Search by name or flat no..."
-                  placeholderTextColor={colors.textMuted}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-
-                {filteredContributions.length === 0 ? (
-                  <View style={styles.emptyBox}>
-                    <Text style={{ color: colors.textMuted, fontStyle: 'italic', fontSize: 13 }}>
-                      {searchQuery ? 'No matching paid records found.' : 'No residents have paid fund for this event yet.'}
+              {/* Paid Contributions Section */}
+              {!isAdmin ? (
+                /* Member View: Shows ONLY that logged-in member's flat contribution */
+                <View style={styles.sectionMargin}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Icon name="credit-card-check-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                      My Contribution
                     </Text>
                   </View>
-                ) : (
-                  filteredContributions.map((c) => (
-                    <View key={c._id} style={[styles.itemCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
-                      <View style={{ flex: 1 }}>
-                        <Text style={[styles.itemName, { color: colors.text }]}>{c.residentId?.name || 'Resident'}</Text>
-                        <Text style={[styles.itemSub, { color: colors.textMuted }]}>
-                          Flat {c.residentId?.houseOrFlatNo || '—'}  ·  {fmtDate(c.date || c.createdAt)}
-                        </Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={[styles.itemAmt, { color: colors.success }]}>{fmt(c.amount)}</Text>
-                        <View style={[styles.modeBadge, { backgroundColor: c.paymentMode === 'UPI' ? '#A855F722' : '#F59E0B22' }]}>
-                          <Text style={[styles.modeText, { color: c.paymentMode === 'UPI' ? '#A855F7' : '#D97706' }]}>
-                            {c.paymentMode}
+
+                  {(() => {
+                    const myContrib = contributions.find((c) => {
+                      const rId = (c.residentId?._id || c.residentId)?.toString();
+                      const uId = user?._id?.toString();
+                      if (rId && uId && rId === uId) return true;
+                      if (
+                        c.residentId?.houseOrFlatNo &&
+                        user?.houseOrFlatNo &&
+                        String(c.residentId.houseOrFlatNo).trim().toLowerCase() === String(user.houseOrFlatNo).trim().toLowerCase()
+                      ) {
+                        return true;
+                      }
+                      return false;
+                    });
+
+                    if (!myContrib) {
+                      return (
+                        <View style={[styles.itemCard, { backgroundColor: colors.background, borderColor: colors.border, paddingVertical: 14 }]}>
+                          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}>
+                            <Icon name="clock-outline" size={20} color={colors.textMuted} style={{ marginRight: 8 }} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.itemName, { color: colors.text }]}>No Contribution Recorded</Text>
+                              <Text style={[styles.itemSub, { color: colors.textMuted }]}>
+                                Flat {user?.houseOrFlatNo || '—'} has no recorded payment for this event yet.
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    }
+
+                    return (
+                      <View style={[styles.itemCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <View style={{ flex: 1 }}>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={[styles.itemName, { color: colors.text }]}>{user?.name || 'My Flat'}</Text>
+                            <View style={[styles.modeBadge, { backgroundColor: colors.success + '22' }]}>
+                              <Text style={[styles.modeText, { color: colors.success }]}>PAID</Text>
+                            </View>
+                          </View>
+                          <Text style={[styles.itemSub, { color: colors.textMuted }]}>
+                            Flat {user?.houseOrFlatNo || '—'}  ·  {fmtDate(myContrib.date || myContrib.createdAt)}
                           </Text>
                         </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.itemAmt, { color: colors.success }]}>{fmt(myContrib.amount)}</Text>
+                          <View style={[styles.modeBadge, { backgroundColor: myContrib.paymentMode === 'UPI' ? '#A855F722' : '#F59E0B22' }]}>
+                            <Text style={[styles.modeText, { color: myContrib.paymentMode === 'UPI' ? '#A855F7' : '#D97706' }]}>
+                              {myContrib.paymentMode}
+                            </Text>
+                          </View>
+                        </View>
                       </View>
+                    );
+                  })()}
+                </View>
+              ) : (
+                /* Admin View: Full society list with search */
+                <View style={styles.sectionMargin}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                    <Icon name="credit-card-check-outline" size={18} color={colors.text} style={{ marginRight: 6 }} />
+                    <Text style={[styles.sectionTitle, { color: colors.text, marginBottom: 0 }]}>
+                      Paid Fund Members ({contributions.length})
+                    </Text>
+                  </View>
+
+                  <TextInput
+                    style={[styles.searchInput, { backgroundColor: colors.background, color: colors.text, borderColor: colors.border }]}
+                    placeholder="Search by name or flat no..."
+                    placeholderTextColor={colors.textMuted}
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+
+                  {filteredContributions.length === 0 ? (
+                    <View style={styles.emptyBox}>
+                      <Text style={{ color: colors.textMuted, fontStyle: 'italic', fontSize: 13 }}>
+                        {searchQuery ? 'No matching paid records found.' : 'No residents have paid fund for this event yet.'}
+                      </Text>
                     </View>
-                  ))
-                )}
-              </View>
+                  ) : (
+                    filteredContributions.map((c) => (
+                      <View key={c._id} style={[styles.itemCard, { backgroundColor: colors.background, borderColor: colors.border }]}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[styles.itemName, { color: colors.text }]}>{c.residentId?.name || 'Resident'}</Text>
+                          <Text style={[styles.itemSub, { color: colors.textMuted }]}>
+                            Flat {c.residentId?.houseOrFlatNo || '—'}  ·  {fmtDate(c.date || c.createdAt)}
+                          </Text>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Text style={[styles.itemAmt, { color: colors.success }]}>{fmt(c.amount)}</Text>
+                          <View style={[styles.modeBadge, { backgroundColor: c.paymentMode === 'UPI' ? '#A855F722' : '#F59E0B22' }]}>
+                            <Text style={[styles.modeText, { color: c.paymentMode === 'UPI' ? '#A855F7' : '#D97706' }]}>
+                              {c.paymentMode}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))
+                  )}
+                </View>
+              )}
             </ScrollView>
           )}
         </View>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
-  KeyboardAvoidingView, Platform, TouchableOpacity, Image,
+  KeyboardAvoidingView, Platform, TouchableOpacity, Image, StatusBar,
 } from 'react-native';
 import { useAuth }      from '../../context/AuthContext';
 import { useAlert }     from '../../context/AlertContext';
@@ -61,6 +61,7 @@ const RegisterScreen = ({ navigation }) => {
     <KeyboardAvoidingView
       style={[styles.flex, { backgroundColor: colors.background }]}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Image
@@ -73,7 +74,18 @@ const RegisterScreen = ({ navigation }) => {
 
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Input label="Full Name *"          placeholder="e.g. Ramesh Patel"        value={form.name}         onChangeText={set('name')}         error={errors.name} />
-          <Input label="Phone Number *"       placeholder="10-digit mobile"           value={form.phone}        onChangeText={set('phone')}        keyboardType="phone-pad" maxLength={10} error={errors.phone} />
+          <Input
+            label="Phone Number *"
+            placeholder="10-digit mobile"
+            value={form.phone}
+            onChangeText={(t) => set('phone')(t.replace(/[^0-9]/g, ''))}
+            keyboardType="phone-pad"
+            maxLength={10}
+            autoCorrect={false}
+            autoCapitalize="none"
+            selectTextOnFocus={false}
+            error={errors.phone}
+          />
           <Input label="Password *"           placeholder="Min 6 characters"          value={form.password}     onChangeText={set('password')}     secureTextEntry error={errors.password} />
           <Input label="Flat / House No"      placeholder="e.g. A-204 (optional)"     value={form.houseOrFlatNo} onChangeText={set('houseOrFlatNo')} error={errors.houseOrFlatNo} />
           <Input label="Total Family Members *" placeholder="e.g. 4"                value={form.totalMembers} onChangeText={set('totalMembers')} keyboardType="number-pad" error={errors.totalMembers} />
@@ -96,9 +108,8 @@ const styles = StyleSheet.create({
   container: { flexGrow: 1, padding: SPACING.lg, paddingVertical: SPACING.xl },
   header:    { alignItems: 'center', marginBottom: SPACING.lg },
   appLogo: {
-    width: 140,
-    height: 100,
-    borderRadius: 12,
+    width: 170,
+    height: 120,
     marginBottom: SPACING.xs,
   },
   subtitle:  { fontSize: 13, marginTop: 2, fontWeight: '500' },

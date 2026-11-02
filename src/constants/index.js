@@ -14,66 +14,41 @@ export const API_BASE_URL = 'https://digivahivatbackend.onrender.com/api';
 // export const API_BASE_URL = 'http://192.168.x.x:5000/api'; // Physical Device (Local WiFi)
 
 // ─── Colours ─────────────────────────────────────────────────────────────────
-export const LIGHT_COLORS = {
-  primary: '#4F46E5',         // Royal Indigo (Fintech Core)
-  primaryDark: '#3730A3',     // Deep Indigo
-  primaryLight: '#EEF2FF',    // Soft Indigo Tint
-  secondary: '#0EA5E9',       // Electric Sky Cyan
-  secondaryLight: '#E0F2FE',  // Soft Sky Tint
-  accent: '#8B5CF6',          // Vivid Violet
-  success: '#10B981',         // Modern Emerald
-  successLight: '#ECFDF5',
-  danger: '#F43F5E',          // Crimson Coral
-  dangerLight: '#FFF1F2',
-  warning: '#F59E0B',         // Sunset Amber
-  warningLight: '#FEF3C7',
-  info: '#3B82F6',            // Electric Blue
-  infoLight: '#EFF6FF',
-  background: '#F8FAFC',      // Slate Porcelain Background
-  surface: '#FFFFFF',         // Crisp White Surface
-  surfaceCard: '#FFFFFF',     // Elevated White Card
-  surfaceSubtle: '#F1F5F9',   // Cool Tint Surface
-  border: '#E2E8F0',          // Hairline Slate Border
+export const THEME_COLORS = {
+  background: '#FFFFFF',
+  surface: '#FFFFFF',
+  card: '#FFFFFF',
+  surfaceCard: '#FFFFFF',
+  surfaceSubtle: '#F8FAFC',
+  text: '#1E1E1E',
+  textSecondary: '#64748B',
+  textMuted: '#64748B',
+  border: '#E2E8F0',
   borderSubtle: '#F1F5F9',
-  text: '#0F172A',            // Deep Slate-900 Primary Text
-  textSecondary: '#334155',   // Slate-700
-  textMuted: '#64748B',       // Slate-500 Muted Text
+  primary: '#00AFEF',
+  primaryDark: '#0090C8',
+  primaryLight: 'rgba(0, 175, 239, 0.12)',
+  danger: '#EF4444',
+  dangerLight: 'rgba(239, 68, 68, 0.12)',
+  success: '#10B981',
+  successLight: 'rgba(16, 185, 129, 0.12)',
+  warning: '#F59E0B',
+  warningLight: 'rgba(245, 158, 11, 0.12)',
+  secondary: '#3E4095',
+  secondaryLight: 'rgba(62, 64, 149, 0.12)',
+  accent: '#3E4095',
+  info: '#00AFEF',
+  infoLight: 'rgba(0, 175, 239, 0.12)',
   white: '#FFFFFF',
-  modalOverlay: 'rgba(15, 23, 42, 0.65)',
-  cardShadow: '#4F46E5',
+  modalOverlay: 'rgba(0, 0, 0, 0.75)',
+  cardShadow: '#3E4095',
 };
 
-export const DARK_COLORS = {
-  primary: '#6366F1',         // Luminous Indigo
-  primaryDark: '#4F46E5',     // Royal Indigo
-  primaryLight: 'rgba(99, 102, 241, 0.16)',
-  secondary: '#38BDF8',       // Bright Cyan
-  secondaryLight: 'rgba(56, 189, 248, 0.16)',
-  accent: '#A78BFA',          // Light Violet
-  success: '#34D399',         // Vibrant Mint
-  successLight: 'rgba(52, 211, 153, 0.16)',
-  danger: '#FB7185',          // Bright Rose Red
-  dangerLight: 'rgba(251, 113, 133, 0.16)',
-  warning: '#FBBF24',         // Bright Amber
-  warningLight: 'rgba(251, 191, 36, 0.16)',
-  info: '#60A5FA',            // Light Sky
-  infoLight: 'rgba(96, 165, 250, 0.16)',
-  background: '#0B0F19',      // Obsidian Slate Background
-  surface: '#151D2C',         // Deep Slate Surface
-  surfaceCard: '#1A2336',     // Elevated Card Surface
-  surfaceSubtle: '#1E293B',   // Sub-container surface
-  border: '#233044',          // Dark Border
-  borderSubtle: '#1C2638',
-  text: '#F8FAFC',            // Crisp White-Slate Text
-  textSecondary: '#CBD5E1',   // Slate-300
-  textMuted: '#94A3B8',       // Slate-400 Muted Text
-  white: '#FFFFFF',
-  modalOverlay: 'rgba(0, 0, 0, 0.82)',
-  cardShadow: '#000000',
-};
+export const LIGHT_COLORS = THEME_COLORS;
+export const DARK_COLORS  = THEME_COLORS;
 
-// Default export alias (falls back to light mode)
-export const COLORS = LIGHT_COLORS;
+// Default export alias
+export const COLORS = THEME_COLORS;
 
 // ─── Design Tokens (Soft & Elevated) ──────────────────────────────────────────
 export const ROUNDED = {
@@ -87,23 +62,23 @@ export const ROUNDED = {
 
 export const SHADOWS = {
   subtle: {
-    shadowColor: '#4F46E5',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.25,
     shadowRadius: 6,
     elevation: 2,
   },
   card: {
-    shadowColor: '#4F46E5',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.07,
+    shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 3,
   },
   floating: {
-    shadowColor: '#4F46E5',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.12,
+    shadowOpacity: 0.45,
     shadowRadius: 18,
     elevation: 6,
   },

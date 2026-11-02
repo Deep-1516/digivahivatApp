@@ -6,11 +6,39 @@
  * app continues running normally even before Firebase packages or
  * google-services.json are linked.
  */
-import { Platform, PermissionsAndroid, Alert } from 'react-native';
+import { Platform, PermissionsAndroid, Alert, NativeModules, Vibration } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { residentsAPI } from './api';
 
+const { NotificationSound } = NativeModules;
+
 const FCM_TOKEN_STORAGE_KEY = '@falo_fcm_token';
+
+// ─── Emergency Siren & Vibration Control ──────────────────────────────────────
+/**
+ * Triggers the urgent SOS alarm siren sound and physical phone vibration
+ */
+export function playEmergencySound() {
+  try {
+    // Urgent repeating vibration pattern: [delay, vib, pause, vib, ...]
+    Vibration.vibrate([0, 600, 250, 600, 250, 600], false);
+    NotificationSound?.playEmergencySound();
+  } catch (err) {
+    console.warn('⚠️ [NotificationSound] Error playing alarm sound:', err.message);
+  }
+}
+
+/**
+ * Stops any actively ringing SOS siren and halts vibration
+ */
+export function stopEmergencySound() {
+  try {
+    Vibration.cancel();
+    NotificationSound?.stopEmergencySound();
+  } catch (err) {
+    console.warn('⚠️ [NotificationSound] Error stopping alarm sound:', err.message);
+  }
+}
 
 // ─── Real-time SOS Pub/Sub Listener ──────────────────────────────────────────
 const sosListeners = new Set();
@@ -154,6 +182,31 @@ export async function unregisterDeviceToken() {
   }
 }
 
+// ─── Notification Navigation Helper ──────────────────────────────────────────
+function handleNotificationNavigation(data, navigationRef) {
+  if (!navigationRef?.isReady?.() || !data) return;
+  const { type, alertId, noticeId } = data;
+  try {
+    if (type === 'EMERGENCY_SOS') {
+      navigationRef.navigate('SosEmergency', { alertId });
+    } else if (type === 'NOTICE') {
+      navigationRef.navigate('NoticeBoard', { noticeId });
+    } else if (type === 'VISITOR_ARRIVED' || type === 'VISITOR_EXITED') {
+      navigationRef.navigate('MyVisitors');
+    } else if (type === 'MAINTENANCE_PAID') {
+      navigationRef.navigate('Maintenance');
+    } else if (type === 'CONTRIBUTION_RECORDED') {
+      navigationRef.navigate('MyPayment');
+    } else if (type === 'NEW_COMPLAINT' || type === 'COMPLAINT_UPDATED') {
+      navigationRef.navigate('Helpdesk');
+    } else if (type === 'NEW_EVENT') {
+      navigationRef.navigate('Home');
+    }
+  } catch (err) {
+    console.warn('⚠️ [Notification Navigation Error]:', err.message);
+  }
+}
+
 /**
  * Sets up incoming notification handlers (Foreground, Background, Quit State)
  */
@@ -164,39 +217,66 @@ export function setupNotificationListeners(navigationRef) {
   const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
     console.log('📬 [FCM Foreground Notification]', remoteMessage);
     const { title, body } = remoteMessage.notification || {};
-    const { type, alertId, flatNo, emergencyType } = remoteMessage.data || {};
+    const data = remoteMessage.data || {};
+    const { type, alertId, flatNo, emergencyType } = data;
 
-    // Immediately notify all active screens (Dashboards, Emergency monitor) to update SOS banner without refresh
-    notifySosListeners(remoteMessage.data);
+    if (type === 'EMERGENCY_SOS') {
+      // Ring urgent siren audio and vibrate device immediately
+      playEmergencySound();
+      notifySosListeners(remoteMessage.data);
 
-    const alertTitle = title || (flatNo ? `🚨 EMERGENCY SOS: Flat ${flatNo}` : '🚨 EMERGENCY SOS');
-    const alertBody  = body || `${emergencyType || 'Urgent'} emergency alert reported in your society!`;
+      const alertTitle = title || (flatNo ? `🚨 EMERGENCY SOS: Flat ${flatNo}` : '🚨 EMERGENCY SOS');
+      const alertBody  = body || `${emergencyType || 'Urgent'} emergency alert reported in your society!`;
 
-    Alert.alert(
-      alertTitle,
-      alertBody,
-      [
-        { text: 'Dismiss', style: 'cancel' },
-        {
-          text: 'View Emergency',
-          onPress: () => {
-            if (navigationRef?.isReady?.()) {
-              navigationRef.navigate('SosEmergency', { alertId });
-            }
+      Alert.alert(
+        alertTitle,
+        alertBody,
+        [
+          {
+            text: 'Dismiss',
+            style: 'cancel',
+            onPress: () => stopEmergencySound(),
           },
-        },
-      ],
-      { cancelable: false }
-    );
+          {
+            text: 'View Emergency',
+            onPress: () => {
+              stopEmergencySound();
+              handleNotificationNavigation(data, navigationRef);
+            },
+          },
+        ],
+        { cancelable: false }
+      );
+    } else {
+      // General notification: vibration and standard in-app popup
+      Vibration.vibrate(300);
+
+      const defaultTitle =
+        type === 'NOTICE' ? '📢 Society Notice' :
+        type === 'VISITOR_ARRIVED' ? '🚪 Visitor at Gate' :
+        type === 'MAINTENANCE_PAID' ? '✅ Maintenance Payment' :
+        type === 'NEW_COMPLAINT' || type === 'COMPLAINT_UPDATED' ? '📝 Complain / Request Update' :
+        type === 'NEW_EVENT' ? '🎊 Society Event' : 'Society Notification';
+
+      Alert.alert(
+        title || defaultTitle,
+        body || '',
+        [
+          { text: 'OK', style: 'cancel' },
+          {
+            text: 'View',
+            onPress: () => handleNotificationNavigation(data, navigationRef),
+          },
+        ]
+      );
+    }
   });
 
   // 2. Background notification tap (user taps notification in tray while app was minimised)
   const unsubscribeOpenedApp = messaging().onNotificationOpenedApp((remoteMessage) => {
     console.log('📱 [FCM Notification Tap (Background)]', remoteMessage?.data);
     notifySosListeners(remoteMessage?.data);
-    if (navigationRef?.isReady?.()) {
-      navigationRef.navigate('SosEmergency', { alertId: remoteMessage?.data?.alertId });
-    }
+    handleNotificationNavigation(remoteMessage?.data, navigationRef);
   });
 
   // 3. Cold start notification tap (app was completely closed / killed)
@@ -207,9 +287,7 @@ export function setupNotificationListeners(navigationRef) {
         console.log('📱 [FCM Notification Tap (Killed State)]', remoteMessage?.data);
         notifySosListeners(remoteMessage?.data);
         setTimeout(() => {
-          if (navigationRef?.isReady?.()) {
-            navigationRef.navigate('SosEmergency', { alertId: remoteMessage?.data?.alertId });
-          }
+          handleNotificationNavigation(remoteMessage?.data, navigationRef);
         }, 1200);
       }
     })

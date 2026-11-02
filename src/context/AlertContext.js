@@ -82,7 +82,29 @@ export const AlertProvider = ({ children }) => {
     });
   }, [showAlert]);
 
-  const showConfirm = useCallback(({ title, message, confirmText = 'Confirm', cancelText = 'Cancel', onConfirm, onCancel }) => {
+  const showConfirm = useCallback((...args) => {
+    let opts = {};
+    if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+      opts = args[0];
+    } else {
+      opts = {
+        title:       args[0],
+        message:     args[1],
+        onConfirm:   args[2],
+        confirmText: args[3] || 'Confirm',
+        cancelText:  args[4] || 'Cancel',
+      };
+    }
+
+    const {
+      title,
+      message,
+      confirmText = 'Confirm',
+      cancelText = 'Cancel',
+      onConfirm,
+      onCancel,
+    } = opts;
+
     showAlert({
       title,
       message,

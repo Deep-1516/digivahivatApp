@@ -1,7 +1,8 @@
 /**
  * src/components/ExpenseItem.js
  *
- * Single row in the expenses feed. Tapping the receipt image opens a modal.
+ * Single card in the expenses feed. Tapping the receipt image opens a modal.
+ * Styled with custom brand palette: Background #FFFFFF, Primary #00AFEF, Secondary #3E4095, Dark #1E1E1E.
  */
 import React, { useState } from 'react';
 import {
@@ -9,34 +10,48 @@ import {
   Modal, Image, Dimensions, Pressable,
 } from 'react-native';
 import { SPACING } from '../constants';
-import { useTheme } from '../context/ThemeContext';
 import Icon from './Icon';
 
 const { width: SCREEN_W } = Dimensions.get('window');
+
+const THEME = {
+  background:    '#FFFFFF',
+  surface:       '#FFFFFF',
+  surfaceSubtle: '#F8FAFC',
+  primary:       '#00AFEF',  // Sky Blue
+  secondary:     '#3E4095',  // Society Deep Blue
+  dark:          '#1E1E1E',  // Dark Text / Charcoal
+  textMuted:     '#64748B',  // Slate Secondary Text
+  border:        '#E2E8F0',  // Crisp Subtle Border
+  borderSubtle:  '#F1F5F9',
+  cardShadow:    '#3E4095',
+  success:       '#10B981',
+  danger:        '#EF4444',
+  warning:       '#F59E0B',
+};
 
 const CATEGORY_COLOR = {
   'Decoration':       '#8E24AA',
   'Panditji/Pooja':   '#E65100',
   'Mahaprasad/Food':  '#2E7D32',
   'Sound/Lighting':   '#1565C0',
-  'Miscellaneous':    '#757575',
+  'Miscellaneous':    '#64748B',
 };
 
-const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit }) => {
-  const { colors, isDark } = useTheme();
+const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit, isLight = true }) => {
   const [imgVisible, setImgVisible] = useState(false);
   const { title, amount, category, date, receiptImageUrl, recordedBy, notes, status = 'Pending', rejectionReason, eventId } = item;
 
   const STATUS_STYLES = {
-    Pending:  { bg: isDark ? '#4A2800' : '#FFF3E0', text: '#FF9800', label: 'Pending Approval', icon: 'clock-outline' },
-    Approved: { bg: isDark ? '#1B3E20' : '#E8F5E9', text: '#4CAF50', label: 'Approved', icon: 'check-circle-outline' },
-    Rejected: { bg: isDark ? '#4A151B' : '#FFEBEE', text: '#F44336', label: 'Rejected', icon: 'close-circle-outline' },
+    Pending:  { bg: '#FFFBEB', text: '#F59E0B', label: 'Pending Approval', icon: 'clock-outline' },
+    Approved: { bg: '#ECFDF5', text: '#10B981', label: 'Approved',         icon: 'check-circle-outline' },
+    Rejected: { bg: '#FEF2F2', text: '#EF4444', label: 'Rejected',         icon: 'close-circle-outline' },
   };
 
   const dateStr = new Date(date).toLocaleDateString('en-IN', {
     day: '2-digit', month: 'short', year: 'numeric',
   });
-  const catColor = CATEGORY_COLOR[category] || colors.textMuted;
+  const catColor = CATEGORY_COLOR[category] || THEME.textMuted;
   const stStyle = STATUS_STYLES[status] || STATUS_STYLES.Pending;
   const eventTitle = eventId?.title || 'General Society Expense';
 
@@ -45,53 +60,80 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
 
   return (
     <>
-      <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-        {/* Event Title pill */}
-        <Text style={[styles.eventTitlePill, { color: colors.primary }]}>{eventTitle}</Text>
+      <View style={styles.card}>
+        {/* Top Accent Strip */}
+        <View style={[styles.cardAccentStrip, { backgroundColor: catColor }]} />
+
+        {/* Event Title Pill */}
+        <View style={styles.eventTitleRow}>
+          <View style={styles.eventPill}>
+            <Icon
+              name={eventId?.title ? 'calendar-star' : 'office-building'}
+              size={12}
+              color={THEME.primary}
+              style={{ marginRight: 4 }}
+            />
+            <Text style={styles.eventTitleText} numberOfLines={1}>{eventTitle}</Text>
+          </View>
+        </View>
 
         <View style={styles.row}>
           {/* Category pill & Status badge */}
-          <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-            <View style={[styles.catPill, { backgroundColor: catColor + '25' }]}>
+          <View style={styles.badgeRow}>
+            <View style={[styles.catPill, { backgroundColor: `${catColor}15` }]}>
               <Text style={[styles.catText, { color: catColor }]}>{category}</Text>
             </View>
-            <View style={[styles.catPill, { backgroundColor: stStyle.bg, flexDirection: 'row', alignItems: 'center' }]}>
-              <Icon name={stStyle.icon} size={12} color={stStyle.text} style={{ marginRight: 3 }} />
-              <Text style={[styles.catText, { color: stStyle.text }]}>{stStyle.label}</Text>
+            <View style={[styles.statusPill, { backgroundColor: stStyle.bg }]}>
+              <Icon name={stStyle.icon} size={12} color={stStyle.text} style={{ marginRight: 4 }} />
+              <Text style={[styles.statusText, { color: stStyle.text }]}>{stStyle.label}</Text>
             </View>
           </View>
 
-          <Text style={[styles.amount, { color: colors.danger }]}>₹{amount.toLocaleString('en-IN')}</Text>
+          <Text style={styles.amount}>₹{amount.toLocaleString('en-IN')}</Text>
         </View>
 
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
-        {notes ? <Text style={[styles.notes, { color: colors.textMuted }]} numberOfLines={2}>{notes}</Text> : null}
+        <Text style={styles.title}>{title}</Text>
+        {notes ? <Text style={styles.notes} numberOfLines={2}>{notes}</Text> : null}
 
-        {/* ── Rejection Reason Box (displayed to both Admin & Resident) ── */}
+        {/* ── Rejection Reason Box ── */}
         {status === 'Rejected' && rejectionReason ? (
-          <View style={[styles.rejectionBox, { backgroundColor: isDark ? '#3D1518' : '#FFEBEE', borderColor: isDark ? '#7F1D1D' : '#FFCDD2' }]}>
+          <View style={styles.rejectionBox}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
-              <Icon name="alert-circle-outline" size={15} color={isDark ? '#EF4444' : '#C62828'} style={{ marginRight: 5, marginTop: 1 }} />
-              <Text style={[styles.rejectionText, { color: isDark ? '#EF4444' : '#C62828', flex: 1 }]}>
-                <Text style={{ fontWeight: '700' }}>Reason for rejection: </Text>{rejectionReason}
+              <Icon name="alert-circle-outline" size={15} color={THEME.danger} style={{ marginRight: 6, marginTop: 1 }} />
+              <Text style={styles.rejectionText}>
+                <Text style={{ fontWeight: '800' }}>Reason: </Text>{rejectionReason}
               </Text>
             </View>
           </View>
         ) : null}
 
+        {/* Card Footer: Metadata & Actions */}
         <View style={styles.footer}>
-          <Text style={[styles.meta, { color: colors.textMuted }]}>{dateStr}  ·  {recordedBy?.name ?? 'Admin'}</Text>
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+          <View style={styles.metaRow}>
+            <Icon name="calendar-outline" size={12} color={THEME.textMuted} style={{ marginRight: 3 }} />
+            <Text style={styles.metaText}>{dateStr}</Text>
+            <Text style={styles.metaDot}>·</Text>
+            <Icon name="account-outline" size={12} color={THEME.textMuted} style={{ marginRight: 3 }} />
+            <Text style={styles.metaText}>{recordedBy?.name ?? 'Admin'}</Text>
+          </View>
+
+          <View style={styles.actionBtnRow}>
             {canEdit && onEdit ? (
-              <TouchableOpacity onPress={() => onEdit(item)} style={[styles.editBtn, { backgroundColor: colors.warning + '20', flexDirection: 'row', alignItems: 'center' }]}>
-                <Icon name="pencil-outline" size={13} color={colors.warning} style={{ marginRight: 3 }} />
-                <Text style={[styles.editBtnText, { color: colors.warning }]}>Edit</Text>
+              <TouchableOpacity
+                onPress={() => onEdit(item)}
+                style={styles.editBtn}
+                activeOpacity={0.75}>
+                <Icon name="pencil-outline" size={13} color={THEME.warning} style={{ marginRight: 3 }} />
+                <Text style={styles.editBtnText}>Edit</Text>
               </TouchableOpacity>
             ) : null}
             {receiptImageUrl ? (
-              <TouchableOpacity onPress={() => setImgVisible(true)} style={[styles.imgBtn, { backgroundColor: colors.info + '20', flexDirection: 'row', alignItems: 'center' }]}>
-                <Icon name="file-image-outline" size={13} color={colors.info} style={{ marginRight: 3 }} />
-                <Text style={[styles.imgBtnText, { color: colors.info }]}>View Bill</Text>
+              <TouchableOpacity
+                onPress={() => setImgVisible(true)}
+                style={styles.imgBtn}
+                activeOpacity={0.75}>
+                <Icon name="file-image-outline" size={13} color={THEME.primary} style={{ marginRight: 4 }} />
+                <Text style={styles.imgBtnText}>View Bill</Text>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -99,32 +141,39 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
 
         {/* ── Admin Action Buttons for Pending Expenses ── */}
         {isAdmin && status === 'Pending' && (
-          <View style={[styles.adminActionRow, { borderTopColor: colors.border + '60' }]}>
+          <View style={styles.adminActionRow}>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.success, flexDirection: 'row', alignItems: 'center' }]}
-              onPress={() => onApprove && onApprove(item)}>
-              <Icon name="check" size={14} color="#FFF" style={{ marginRight: 3 }} />
-              <Text style={styles.actionBtnText}>Approve</Text>
+              style={[styles.adminBtn, { backgroundColor: THEME.success }]}
+              onPress={() => onApprove && onApprove(item)}
+              activeOpacity={0.8}>
+              <Icon name="check" size={14} color="#FFF" style={{ marginRight: 4 }} />
+              <Text style={styles.adminBtnText}>Approve</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.actionBtn, { backgroundColor: colors.danger, flexDirection: 'row', alignItems: 'center' }]}
-              onPress={() => onReject && onReject(item)}>
-              <Icon name="close" size={14} color="#FFF" style={{ marginRight: 3 }} />
-              <Text style={styles.actionBtnText}>Reject</Text>
+              style={[styles.adminBtn, { backgroundColor: THEME.danger }]}
+              onPress={() => onReject && onReject(item)}
+              activeOpacity={0.8}>
+              <Icon name="close" size={14} color="#FFF" style={{ marginRight: 4 }} />
+              <Text style={styles.adminBtnText}>Reject</Text>
             </TouchableOpacity>
           </View>
         )}
       </View>
 
-      {/* ─── Bill Image Modal ─────────────────────────────────────────── */}
+      {/* ─── Bill Image Modal ─── */}
       <Modal visible={imgVisible} transparent animationType="fade" onRequestClose={() => setImgVisible(false)}>
         <Pressable style={styles.overlay} onPress={() => setImgVisible(false)}>
-          <Image
-            source={{ uri: receiptImageUrl }}
-            style={styles.fullImage}
-            resizeMode="contain"
-          />
-          <Text style={styles.closeHint}>Tap anywhere to close</Text>
+          <View style={styles.modalContent}>
+            <Image
+              source={{ uri: receiptImageUrl }}
+              style={styles.fullImage}
+              resizeMode="contain"
+            />
+            <View style={styles.closeHintPill}>
+              <Icon name="close" size={14} color="#FFFFFF" style={{ marginRight: 4 }} />
+              <Text style={styles.closeHint}>Tap anywhere to close</Text>
+            </View>
+          </View>
         </Pressable>
       </Modal>
     </>
@@ -133,37 +182,128 @@ const ExpenseItem = ({ item, isAdmin, currentUserId, onApprove, onReject, onEdit
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius:    16,
+    borderRadius:    20,
     padding:         SPACING.md,
-    marginBottom:    SPACING.sm,
-    borderWidth:     1,
-    elevation:       2,
-    shadowColor:     '#4F46E5',
-    shadowOffset:    { width: 0, height: 3 },
-    shadowOpacity:   0.05,
-    shadowRadius:    8,
+    marginBottom:    SPACING.md,
+    borderWidth:     1.2,
+    borderColor:     THEME.border,
+    backgroundColor: THEME.surface,
+    elevation:       2.5,
+    shadowColor:     THEME.secondary,
+    shadowOffset:    { width: 0, height: 4 },
+    shadowOpacity:   0.06,
+    shadowRadius:    10,
+    overflow:        'hidden',
+    position:        'relative',
   },
-  eventTitlePill: { fontSize: 11, fontWeight: '800', marginBottom: 5, letterSpacing: 0.2 },
-  row:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  catPill: { borderRadius: 10, paddingHorizontal: 10, paddingVertical: 4 },
+  cardAccentStrip: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 3.5,
+  },
+  eventTitleRow: {
+    flexDirection: 'row',
+    marginBottom: 6,
+    marginTop: 2,
+  },
+  eventPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 175, 239, 0.08)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  eventTitleText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: THEME.primary,
+    letterSpacing: 0.2,
+  },
+  row: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  catPill: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
   catText: { fontSize: 11, fontWeight: '700' },
-  amount:  { fontSize: 17, fontWeight: '900', letterSpacing: -0.2 },
-  title:   { fontSize: 14, fontWeight: '700', marginBottom: 3 },
-  notes:   { fontSize: 12, marginBottom: 5 },
+  statusPill: {
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusText: { fontSize: 10.5, fontWeight: '800' },
+  amount:     { fontSize: 17, fontWeight: '900', color: THEME.danger, letterSpacing: -0.3 },
+  title:      { fontSize: 15, fontWeight: '800', color: THEME.dark, marginBottom: 3 },
+  notes:      { fontSize: 12, color: THEME.textMuted, marginBottom: 6, lineHeight: 16 },
+
   rejectionBox: {
     borderRadius: 12,
     padding: 10,
-    marginTop: 5,
-    marginBottom: 6,
+    marginTop: 4,
+    marginBottom: 8,
     borderWidth: 1,
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
   },
-  rejectionText: { fontSize: 12 },
-  footer:  { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 },
-  meta:    { fontSize: 11 },
-  editBtn: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  editBtnText: { fontSize: 11, fontWeight: '700' },
-  imgBtn:  { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  imgBtnText: { fontSize: 11, fontWeight: '700' },
+  rejectionText: {
+    fontSize: 11.5,
+    color: THEME.danger,
+    flex: 1,
+    lineHeight: 16,
+  },
+
+  footer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: THEME.borderSubtle,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  metaText: { fontSize: 11, fontWeight: '500', color: THEME.textMuted },
+  metaDot:  { marginHorizontal: 4, color: THEME.textMuted, fontSize: 12 },
+
+  actionBtnRow: { flexDirection: 'row', gap: 6, alignItems: 'center' },
+  editBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(245, 158, 11, 0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  editBtnText: { fontSize: 11, fontWeight: '800', color: THEME.warning },
+  imgBtn: {
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(0, 175, 239, 0.12)',
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  imgBtnText: { fontSize: 11, fontWeight: '800', color: THEME.primary },
+
   adminActionRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -171,21 +311,32 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 8,
     borderTopWidth: 1,
+    borderTopColor: THEME.borderSubtle,
   },
-  actionBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
+  adminBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    elevation: 1.5,
   },
-  actionBtnText: {
-    color: '#FFF',
-    fontWeight: '800',
-    fontSize: 12,
-  },
+  adminBtnText: { color: '#FFF', fontWeight: '800', fontSize: 11.5 },
+
   // Modal
-  overlay:   { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
-  fullImage: { width: SCREEN_W - 32, height: SCREEN_W - 32 },
-  closeHint: { color: '#fff', marginTop: 12, fontSize: 13, opacity: 0.7 },
+  overlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
+  modalContent: { alignItems: 'center', justifyContent: 'center' },
+  fullImage:    { width: SCREEN_W - 32, height: SCREEN_W - 32, borderRadius: 14 },
+  closeHintPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    marginTop: 14,
+  },
+  closeHint:    { color: '#fff', fontSize: 12.5, fontWeight: '700' },
 });
 
 export default ExpenseItem;
