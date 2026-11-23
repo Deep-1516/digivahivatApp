@@ -47,8 +47,8 @@ const fmt = (n) => `₹${Number(n).toLocaleString('en-IN')}`;
 
 const DashboardScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user, logout: authLogout } = useAuth();
-  const { showError, hideAlert }      = useAlert();
+  const { user, logout: authLogout, deleteAccount: authDeleteAccount } = useAuth();
+  const { showError, showConfirm, showSuccess, hideAlert } = useAlert();
   const [dashboard,   setDashboard]   = useState(null);
   const [societyStats, setSociety]    = useState(null);
   const [refreshing,  setRefreshing]  = useState(false);
@@ -60,6 +60,24 @@ const DashboardScreen = ({ navigation }) => {
   const handleLogout = () => {
     hideAlert();
     authLogout();
+  };
+
+  const handleDeleteAccount = () => {
+    hideAlert();
+    showConfirm({
+      title: 'Delete Account',
+      message: 'Are you sure you want to permanently delete your account and all associated personal data?\n\n• Your profile will be removed.\n• You will immediately be signed out.\n• This action cannot be reversed.',
+      confirmText: 'Delete Permanently',
+      cancelText: 'Keep Account',
+      onConfirm: async () => {
+        try {
+          await authDeleteAccount();
+          showSuccess('Account Deleted', 'Your account and personal data have been removed.');
+        } catch (err) {
+          await authLogout();
+        }
+      },
+    });
   };
 
   const fetchData = useCallback(async () => {
@@ -149,13 +167,20 @@ const DashboardScreen = ({ navigation }) => {
               </View>
             ) : null}
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity
               style={styles.headerSosBtn}
               onPress={() => setShowSosModal(true)}
               activeOpacity={0.85}>
               <Icon name="alarm-light" size={15} color="#FFFFFF" style={{ marginRight: 4 }} />
               <Text style={styles.headerSosBtnText}>SOS</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.headerDeleteBtn}
+              onPress={handleDeleteAccount}
+              activeOpacity={0.75}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Icon name="account-remove-outline" size={18} color={THEME.textMuted} />
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.logoutBtnPill}
@@ -449,6 +474,13 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
   flat:       { fontSize: 11.5, fontWeight: '700', color: THEME.secondary },
+  headerDeleteBtn: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logoutBtnPill: {
     flexDirection: 'row',
     alignItems: 'center',

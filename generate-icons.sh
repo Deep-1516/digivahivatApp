@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Source image
-SRC="src/assets/logo.png"
+SRC="src/assets/1024.png"
 
 # Destination directory
 DEST="ios/falomobileapp/Images.xcassets/AppIcon.appiconset"

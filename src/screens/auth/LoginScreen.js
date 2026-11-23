@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, ScrollView,
   KeyboardAvoidingView, Platform, TouchableOpacity, Image,
-  StatusBar, ActivityIndicator,
+  StatusBar, ActivityIndicator, Linking,
 } from 'react-native';
 import { useAuth }      from '../../context/AuthContext';
 import { useAlert }     from '../../context/AlertContext';
@@ -31,6 +31,22 @@ const LoginScreen = ({ navigation }) => {
   const [password, setPassword] = useState('');
   const [loading,  setLoading]  = useState(false);
   const [errors,   setErrors]   = useState({});
+
+  const PRIVACY_POLICY_URL = 'https://digivahivatbackend.onrender.com/privacy-policy';
+  const SUPPORT_URL        = 'https://digivahivatbackend.onrender.com/support';
+
+  const openLink = async (url) => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        await Linking.openURL(url);
+      }
+    } catch (e) {
+      // Ignore or log error
+    }
+  };
 
   const validate = () => {
     const e = {};
@@ -155,6 +171,17 @@ const LoginScreen = ({ navigation }) => {
               Accounts are created and managed by society administration. Contact your Society Admin if you need login access.
             </Text>
           </View>
+        </View>
+
+        {/* Legal & Support Links */}
+        <View style={styles.linksRow}>
+          <TouchableOpacity onPress={() => openLink(PRIVACY_POLICY_URL)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.legalLink}>Privacy Policy</Text>
+          </TouchableOpacity>
+          <Text style={styles.linkSeparator}>•</Text>
+          <TouchableOpacity onPress={() => openLink(SUPPORT_URL)} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Text style={styles.legalLink}>Support</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Footer */}
@@ -305,7 +332,24 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: THEME.textMuted,
+    marginTop: 8,
+  },
+  linksRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginTop: SPACING.lg,
+    gap: 8,
+  },
+  legalLink: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: THEME.secondary,
+    textDecorationLine: 'underline',
+  },
+  linkSeparator: {
+    fontSize: 12,
+    color: THEME.textMuted,
   },
 });
 

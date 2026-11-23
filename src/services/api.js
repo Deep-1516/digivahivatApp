@@ -94,8 +94,9 @@ export default api;
 // AUTH
 // ════════════════════════════════════════════════════════════════════════════
 export const authAPI = {
-  register: (data) => api.post('/auth/register', data),
-  login:    (data) => api.post('/auth/login', data),
+  register:      (data) => api.post('/auth/register', data),
+  login:         (data) => api.post('/auth/login', data),
+  deleteAccount: (id)   => api.delete(id ? `/residents/${id}` : '/residents/me'),
 };
 
 export const societiesAPI = {

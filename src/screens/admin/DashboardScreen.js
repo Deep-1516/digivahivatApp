@@ -57,8 +57,8 @@ const STATUS_CONFIG = {
 
 const AdminDashboardScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { user, logout: authLogout }   = useAuth();
-  const { showError, showAlert, hideAlert } = useAlert();
+  const { user, logout: authLogout, deleteAccount: authDeleteAccount }   = useAuth();
+  const { showError, showAlert, hideAlert, showConfirm, showSuccess } = useAlert();
   const [events,        setEvents]      = useState([]);
   const [recentC,       setRecentC]     = useState([]);
   const [loading,       setLoading]     = useState(true);
@@ -71,6 +71,24 @@ const AdminDashboardScreen = ({ navigation }) => {
   const handleLogout = () => {
     hideAlert();
     authLogout();
+  };
+
+  const handleDeleteAccount = () => {
+    hideAlert();
+    showConfirm({
+      title: 'Delete Admin Account',
+      message: 'Are you sure you want to permanently delete your account and associated admin access?\n\n• Your profile will be removed.\n• You will immediately be signed out.\n• This action cannot be reversed.',
+      confirmText: 'Delete Permanently',
+      cancelText: 'Keep Account',
+      onConfirm: async () => {
+        try {
+          await authDeleteAccount();
+          showSuccess('Account Deleted', 'Your account has been successfully removed.');
+        } catch (err) {
+          await authLogout();
+        }
+      },
+    });
   };
 
   const handlePdfReceipt = (item) => {
@@ -313,13 +331,22 @@ const AdminDashboardScreen = ({ navigation }) => {
               <Text style={styles.sub}>{user?.name || 'Society Administration'}</Text>
             </View>
           </View>
-          <TouchableOpacity
-            style={styles.logoutBtnPill}
-            onPress={handleLogout}
-            activeOpacity={0.75}>
-            <Icon name="logout" size={13} color={THEME.danger} style={{ marginRight: 4 }} />
-            <Text style={styles.logoutBtn}>Logout</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <TouchableOpacity
+              style={styles.headerDeleteBtn}
+              onPress={handleDeleteAccount}
+              activeOpacity={0.75}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <Icon name="account-remove-outline" size={18} color={THEME.textMuted} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.logoutBtnPill}
+              onPress={handleLogout}
+              activeOpacity={0.75}>
+              <Icon name="logout" size={13} color={THEME.danger} style={{ marginRight: 4 }} />
+              <Text style={styles.logoutBtn}>Logout</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* ─── Active Emergency SOS Banner ─── */}
@@ -538,6 +565,13 @@ const styles = StyleSheet.create({
   },
   title:      { fontSize: 20, fontWeight: '900', color: THEME.dark, letterSpacing: -0.4 },
   sub:        { fontSize: 12, color: THEME.textMuted, marginTop: 1, fontWeight: '500' },
+  headerDeleteBtn: {
+    padding: 6,
+    borderRadius: 20,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   logoutBtnPill: {
     flexDirection: 'row',
     alignItems: 'center',
