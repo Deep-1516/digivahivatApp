@@ -27,8 +27,8 @@ import { SPACING }        from '../../constants';
 
 const ResidentsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
-  const { isAdmin } = useAuth();
-  const { showError } = useAlert();
+  const { user, isAdmin } = useAuth();
+  const { showError, showSuccess, showConfirm } = useAlert();
   const { colors }    = useTheme();
   const [residents,  setResidents]  = useState([]);
   const [search,     setSearch]     = useState('');
@@ -48,6 +48,25 @@ const ResidentsScreen = ({ navigation }) => {
   }, [showError]);
 
   useFocusEffect(useCallback(() => { fetchData(); }, [fetchData]));
+
+  const handleDeleteResident = (resident) => {
+    showConfirm({
+      title: 'Delete Resident',
+      message: `Permanently delete "${resident.name}"?\nThis cannot be undone.`,
+      confirmText: 'Delete',
+      cancelText: 'Cancel',
+      confirmStyle: 'destructive',
+      onConfirm: async () => {
+        try {
+          await residentsAPI.remove(resident._id);
+          showSuccess('Deleted', `Resident "${resident.name}" has been removed.`);
+          fetchData();
+        } catch (err) {
+          showError('Delete Failed', err.message);
+        }
+      },
+    });
+  };
 
   const onRefresh = () => { setRefreshing(true); fetchData(); };
 
@@ -202,21 +221,34 @@ const ResidentsScreen = ({ navigation }) => {
                 {/* Subtle Divider */}
                 <View style={[styles.cardDivider, { backgroundColor: colors.border + '80' }]} />
 
-                {/* Bottom Row: Phone and Members Count */}
+                {/* Bottom Row: Phone, Members Count & Delete Action */}
                 <View style={styles.cardMetaRow}>
-                  <View style={styles.metaItem}>
-                    <Icon name="phone-outline" size={13} color={colors.textMuted} style={styles.metaIcon} />
-                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                      {item.phone}
-                    </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
+                    <View style={styles.metaItem}>
+                      <Icon name="phone-outline" size={13} color={colors.textMuted} style={styles.metaIcon} />
+                      <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                        {item.phone}
+                      </Text>
+                    </View>
+
+                    <View style={styles.metaItem}>
+                      <Icon name="account-group" size={14} color={colors.textMuted} style={styles.metaIcon} />
+                      <Text style={[styles.metaText, { color: colors.textMuted }]}>
+                        {item.totalMembers || 1} members
+                      </Text>
+                    </View>
                   </View>
 
-                  <View style={styles.metaItem}>
-                    <Icon name="account-group" size={14} color={colors.textMuted} style={styles.metaIcon} />
-                    <Text style={[styles.metaText, { color: colors.textMuted }]}>
-                      {item.totalMembers || 1} members
-                    </Text>
-                  </View>
+                  {/* Admin can delete resident (cannot delete self from here) */}
+                  {item._id !== user?._id && (
+                    <TouchableOpacity
+                      onPress={() => handleDeleteResident(item)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      style={[styles.deleteResidentBtn, { backgroundColor: colors.danger + '14', borderColor: colors.danger + '30' }]}>
+                      <Icon name="delete-outline" size={14} color={colors.danger} />
+                      <Text style={[styles.deleteResidentText, { color: colors.danger }]}>Delete</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             </View>
@@ -430,6 +462,19 @@ const styles = StyleSheet.create({
   metaText: {
     fontSize: 12.5,
     fontWeight: '600',
+  },
+  deleteResidentBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  deleteResidentText: {
+    fontSize: 11.5,
+    fontWeight: '700',
   },
 
   empty: {

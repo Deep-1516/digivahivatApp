@@ -153,6 +153,22 @@ const SocietiesScreen = ({ navigation }) => {
     );
   };
 
+  const handleDeleteAdmin = (soc, adminObj) => {
+    showConfirm(
+      'DELETE ADMIN',
+      `Permanently remove admin "${adminObj.name}" from "${soc.name}"?\nThis cannot be undone.`,
+      async () => {
+        try {
+          await residentsAPI.remove(adminObj._id);
+          showSuccess('Admin Deleted', `Admin "${adminObj.name}" has been removed.`);
+          fetchSocieties();
+        } catch (err) {
+          showError('Delete Failed', err.message);
+        }
+      }
+    );
+  };
+
   // ─── Assign / Edit Admin Handlers ─────────────────────────────────────────
   const openAssignNewAdmin = (soc) => {
     setAdminSociety(soc);
@@ -294,12 +310,20 @@ const SocietiesScreen = ({ navigation }) => {
                     <Text style={[styles.adminPhoneText, { color: colors.textMuted, marginTop: 0 }]}>{adm.phone}</Text>
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={[styles.editAdminBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
-                  onPress={() => openEditAdmin(item, adm)}>
-                  <Icon name="pencil" size={12} color="#fff" />
-                  <Text style={styles.editAdminBtnText}>Edit Admin</Text>
-                </TouchableOpacity>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    style={[styles.editAdminBtn, { backgroundColor: colors.primary, flexDirection: 'row', alignItems: 'center', gap: 4 }]}
+                    onPress={() => openEditAdmin(item, adm)}>
+                    <Icon name="pencil" size={12} color="#fff" />
+                    <Text style={styles.editAdminBtnText}>Edit Admin</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.deleteAdminBtn, { backgroundColor: colors.danger + '18', borderColor: colors.danger + '35' }]}
+                    onPress={() => handleDeleteAdmin(item, adm)}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                    <Icon name="delete-outline" size={15} color={colors.danger} />
+                  </TouchableOpacity>
+                </View>
               </View>
             ))
           ) : (
@@ -567,6 +591,7 @@ const styles = StyleSheet.create({
   adminPhoneText:     { fontSize: 11, marginTop: 2 },
   editAdminBtn:       { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   editAdminBtnText:   { color: '#fff', fontSize: 11, fontWeight: '700' },
+  deleteAdminBtn:     { padding: 5, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
 
   actionsRow:     { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: SPACING.sm },
   btnAction:      { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10 },

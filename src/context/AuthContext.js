@@ -79,13 +79,10 @@ export const AuthProvider = ({ children }) => {
   // ── Delete Account: remove user from server & clear everything ───────────
   const deleteAccount = async () => {
     try {
-      const userId = user?._id || user?.id;
-      if (userId) {
-        try {
-          await residentsAPI.remove(userId);
-        } catch (apiErr) {
-          console.log('Server delete resident attempt:', apiErr.message);
-        }
+      try {
+        await residentsAPI.deleteMe();
+      } catch (apiErr) {
+        console.log('Server self-delete attempt failed:', apiErr.message);
       }
     } finally {
       await logout();

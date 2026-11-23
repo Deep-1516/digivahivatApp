@@ -96,7 +96,7 @@ export default api;
 export const authAPI = {
   register:      (data) => api.post('/auth/register', data),
   login:         (data) => api.post('/auth/login', data),
-  deleteAccount: (id)   => api.delete(id ? `/residents/${id}` : '/residents/me'),
+  deleteAccount: ()     => api.delete('/residents/me'),
 };
 
 export const societiesAPI = {
@@ -113,6 +113,7 @@ export const societiesAPI = {
 export const residentsAPI = {
   getAll:         ()          => api.get('/residents'),
   getMe:          ()          => api.get('/residents/me'),
+  deleteMe:       ()          => api.delete('/residents/me'),
   add:            (data)      => api.post('/residents', data),
   update:         (id, d)     => api.patch(`/residents/${id}`, d),
   remove:         (id)        => api.delete(`/residents/${id}`),
