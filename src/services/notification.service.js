@@ -69,12 +69,21 @@ export function notifySosListeners(data) {
   });
 }
 
-let messaging = null;
+let messagingModule = null;
 try {
   const mod = require('@react-native-firebase/messaging');
-  messaging = mod.default || mod;
+  messagingModule = mod.default || mod;
 } catch (_) {
   // @react-native-firebase/messaging not installed or linked yet
+}
+
+function getMessagingInstance() {
+  try {
+    if (!messagingModule || typeof messagingModule !== 'function') return null;
+    return messagingModule();
+  } catch (_) {
+    return null;
+  }
 }
 
 /**
@@ -92,11 +101,12 @@ export async function requestNotificationPermission() {
       }
     }
 
-    if (messaging) {
-      const authStatus = await messaging().requestPermission();
+    const instance = getMessagingInstance();
+    if (instance && messagingModule?.AuthorizationStatus) {
+      const authStatus = await instance.requestPermission();
       const enabled =
-        authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-        authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+        authStatus === messagingModule.AuthorizationStatus.AUTHORIZED ||
+        authStatus === messagingModule.AuthorizationStatus.PROVISIONAL;
       return enabled;
     }
 
@@ -111,8 +121,9 @@ export async function requestNotificationPermission() {
  * Retrieves the device's FCM token and registers it with the backend
  */
 export async function registerDeviceToken() {
-  if (!messaging) {
-    console.log('ℹ️  [Notifications] Firebase messaging module not installed or linked yet. Please run: npm install in falomobileapp');
+  const instance = getMessagingInstance();
+  if (!instance) {
+    console.log('ℹ️  [Notifications] Firebase messaging module not configured or available.');
     return null;
   }
 
@@ -125,10 +136,10 @@ export async function registerDeviceToken() {
 
     // Register device with FCM
     if (Platform.OS === 'ios') {
-      await messaging().registerDeviceForRemoteMessages();
+      await instance.registerDeviceForRemoteMessages();
     }
 
-    const token = await messaging().getToken();
+    const token = await instance.getToken();
     if (!token) {
       console.warn('⚠️ [Notifications] Failed to retrieve FCM token from device.');
       return null;
@@ -149,7 +160,7 @@ export async function registerDeviceToken() {
     }
 
     // Listen for future token refreshes (e.g. app restore or token rotation)
-    messaging().onTokenRefresh(async (newToken) => {
+    instance.onTokenRefresh(async (newToken) => {
       try {
         console.log('🔄 [Notifications] Refreshed FCM token received:', newToken);
         await residentsAPI.saveFcmToken(newToken);
@@ -211,10 +222,11 @@ function handleNotificationNavigation(data, navigationRef) {
  * Sets up incoming notification handlers (Foreground, Background, Quit State)
  */
 export function setupNotificationListeners(navigationRef) {
-  if (!messaging) return () => {};
+  const instance = getMessagingInstance();
+  if (!instance) return () => {};
 
   // 1. Foreground notification (app is currently active on screen)
-  const unsubscribeForeground = messaging().onMessage(async (remoteMessage) => {
+  const unsubscribeForeground = instance.onMessage(async (remoteMessage) => {
     console.log('📬 [FCM Foreground Notification]', remoteMessage);
     const { title, body } = remoteMessage.notification || {};
     const data = remoteMessage.data || {};
@@ -273,14 +285,14 @@ export function setupNotificationListeners(navigationRef) {
   });
 
   // 2. Background notification tap (user taps notification in tray while app was minimised)
-  const unsubscribeOpenedApp = messaging().onNotificationOpenedApp((remoteMessage) => {
+  const unsubscribeOpenedApp = instance.onNotificationOpenedApp((remoteMessage) => {
     console.log('📱 [FCM Notification Tap (Background)]', remoteMessage?.data);
     notifySosListeners(remoteMessage?.data);
     handleNotificationNavigation(remoteMessage?.data, navigationRef);
   });
 
   // 3. Cold start notification tap (app was completely closed / killed)
-  messaging()
+  instance
     .getInitialNotification()
     .then((remoteMessage) => {
       if (remoteMessage) {
@@ -294,7 +306,9 @@ export function setupNotificationListeners(navigationRef) {
     .catch((err) => console.warn('⚠️ [Notifications] Initial notification error:', err.message));
 
   return () => {
-    unsubscribeForeground();
-    unsubscribeOpenedApp();
+    try {
+      if (typeof unsubscribeForeground === 'function') unsubscribeForeground();
+      if (typeof unsubscribeOpenedApp === 'function') unsubscribeOpenedApp();
+    } catch (_) {}
   };
 }

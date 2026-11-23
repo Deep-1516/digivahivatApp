@@ -7,7 +7,7 @@
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { setLoggingOut } from '../services/api';
+import { setLoggingOut, residentsAPI } from '../services/api';
 import { registerDeviceToken, unregisterDeviceToken } from '../services/notification.service';
 
 const AuthContext = createContext(null);
@@ -76,12 +76,28 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // ── Delete Account: remove user from server & clear everything ───────────
+  const deleteAccount = async () => {
+    try {
+      const userId = user?._id || user?.id;
+      if (userId) {
+        try {
+          await residentsAPI.remove(userId);
+        } catch (apiErr) {
+          console.log('Server delete resident attempt:', apiErr.message);
+        }
+      }
+    } finally {
+      await logout();
+    }
+  };
+
   const isAdmin      = user?.role === 'Admin';
   const isSuperAdmin = user?.role === 'SuperAdmin';
   const isGuard      = user?.role === 'Guard' || user?.role === 'Gaurd';
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, isAdmin, isSuperAdmin, isGuard, login, logout, updateUser }}>
+    <AuthContext.Provider value={{ user, token, loading, isAdmin, isSuperAdmin, isGuard, login, logout, deleteAccount, updateUser }}>
       {children}
     </AuthContext.Provider>
   );
